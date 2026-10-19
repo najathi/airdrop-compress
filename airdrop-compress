@@ -1,0 +1,178 @@
+#!/bin/bash
+# Control the AirDrop -> WebP background service (a macOS LaunchAgent).
+#
+#   ./airdrop-compress install     set up the venv + LaunchAgent and start it (runs at every login)
+#   ./airdrop-compress disable     stop it, and keep it off after restarts/logins
+#   ./airdrop-compress enable      turn it back on (now and at every login)
+#   ./airdrop-compress restart     restart it (after editing settings in airdrop_compress.py)
+#   ./airdrop-compress status      show whether it is running
+#   ./airdrop-compress logs        follow the log
+#   ./airdrop-compress scan        one-off: convert images already in the AirDrop folder
+#   ./airdrop-compress run         run in the foreground (Ctrl+C to stop)
+#   ./airdrop-compress permissions open the Full Disk Access settings
+#   ./airdrop-compress uninstall   remove the LaunchAgent (keeps converted images)
+
+set -euo pipefail
+
+LABEL="com.${USER}.airdrop-compress"
+DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+VENV="$DIR/.venv"
+PY="$VENV/bin/python"
+SCRIPT="$DIR/airdrop_compress.py"
+PLIST="$HOME/Library/LaunchAgents/$LABEL.plist"
+LOG_DIR="$HOME/Library/Logs/AirDropCompress"
+LOG="$LOG_DIR/airdrop-compress.log"
+DOMAIN="gui/$(id -u)"
+SERVICE="$DOMAIN/$LABEL"
+
+is_loaded() { launchctl print "$SERVICE" >/dev/null 2>&1; }
+
+real_python() {
+  # The binary macOS privacy settings see (venv python is a symlink chain).
+  "$PY" -c 'import sys, os; print(os.path.realpath(sys.executable))'
+}
+
+setup_venv() {
+  if [[ ! -x "$PY" ]]; then
+    echo "Creating virtual environment..."
+    python3 -m venv "$VENV"
+  fi
+  echo "Installing libraries (Pillow, pillow-heif, watchdog)..."
+  "$PY" -m pip install --quiet --upgrade pip
+  "$PY" -m pip install --quiet -r "$DIR/requirements.txt"
+}
+
+write_plist() {
+  mkdir -p "$(dirname "$PLIST")" "$LOG_DIR"
+  local env_block=""
+  if [[ -n "${AIRDROP_DIR:-}" ]]; then
+    env_block="<key>EnvironmentVariables</key><dict><key>AIRDROP_DIR</key><string>$AIRDROP_DIR</string></dict>"
+  fi
+  cat >"$PLIST" <<EOF
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key><string>$LABEL</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>$PY</string>
+    <string>-u</string>
+    <string>$SCRIPT</string>
+  </array>
+  <key>WorkingDirectory</key><string>$DIR</string>
+  <key>RunAtLoad</key><true/>
+  <key>KeepAlive</key><dict><key>SuccessfulExit</key><false/></dict>
+  <key>ThrottleInterval</key><integer>10</integer>
+  <key>ProcessType</key><string>Background</string>
+  <key>StandardOutPath</key><string>$LOG</string>
+  <key>StandardErrorPath</key><string>$LOG</string>
+  $env_block
+</dict>
+</plist>
+EOF
+}
+
+start() {
+  launchctl enable "$SERVICE"
+  if ! is_loaded; then
+    launchctl bootstrap "$DOMAIN" "$PLIST"
+  else
+    launchctl kickstart -k "$SERVICE"
+  fi
+}
+
+stop() {
+  if is_loaded; then
+    launchctl bootout "$SERVICE" 2>/dev/null || true
+    # bootout returns before the service is fully unloaded; wait for it.
+    for _ in {1..50}; do is_loaded || break; sleep 0.2; done
+  fi
+}
+
+require_installed() {
+  if [[ ! -f "$PLIST" ]]; then
+    echo "Not installed yet. Run: $0 install" >&2
+    exit 1
+  fi
+}
+
+check_access() {
+  sleep 3
+  if tail -n 20 "$LOG" 2>/dev/null | grep -q "macOS is blocking access"; then
+    echo
+    echo "macOS is blocking background access to your AirDrop folder."
+    echo "Run '$0 permissions' and follow the steps; the service picks it up within 30s."
+  fi
+}
+
+case "${1:-help}" in
+  install)
+    setup_venv
+    stop
+    write_plist
+    start
+    echo "Installed and running. It will start automatically when you log in."
+    echo "Converted images go to: $("$PY" -c "import sys; sys.path.insert(0, \"$DIR\"); import airdrop_compress as a; print(a.OUTPUT_DIR)" 2>/dev/null)"
+    check_access
+    ;;
+  enable|start)
+    require_installed
+    start
+    echo "Enabled - watching for AirDrop images (also at every login)."
+    check_access
+    ;;
+  disable|stop)
+    stop
+    launchctl disable "$SERVICE"
+    echo "Disabled - no longer watching. It stays off after restart until you run: $0 enable"
+    ;;
+  restart)
+    require_installed
+    stop
+    start
+    echo "Restarted."
+    ;;
+  status)
+    if is_loaded && launchctl print "$SERVICE" | grep -q "state = running"; then
+      pid=$(launchctl print "$SERVICE" | awk '/pid = /{print $3; exit}')
+      echo "Running (pid $pid)."
+    elif [[ -f "$PLIST" ]] && launchctl print-disabled "$DOMAIN" | grep -q "\"$LABEL\" => disabled"; then
+      echo "Disabled."
+    elif [[ -f "$PLIST" ]]; then
+      echo "Installed but not running. Try: $0 enable   (and check: $0 logs)"
+    else
+      echo "Not installed."
+    fi
+    [[ -f "$LOG" ]] && { echo "--- last log lines ---"; tail -n 5 "$LOG"; }
+    ;;
+  logs)
+    mkdir -p "$LOG_DIR"; touch "$LOG"
+    tail -n 50 -f "$LOG"
+    ;;
+  scan)
+    "$PY" "$SCRIPT" --scan-existing
+    ;;
+  run)
+    "$PY" "$SCRIPT"
+    ;;
+  permissions)
+    bin="$(real_python)"
+    echo "If macOS blocks access to the AirDrop folder, give this program Full Disk Access:"
+    echo
+    echo "    $bin"
+    echo
+    echo "System Settings > Privacy & Security > Full Disk Access > + , then press"
+    echo "Cmd+Shift+G, paste the path above, and turn it on. Opening the settings now..."
+    open "x-apple.systempreferences:com.apple.preference.security?Privacy_AllFiles"
+    ;;
+  uninstall)
+    stop
+    launchctl enable "$SERVICE" 2>/dev/null || true  # clear the persistent 'disabled' flag
+    rm -f "$PLIST"
+    echo "Uninstalled. Your originals and the 'Image Compressed' folder were left untouched."
+    ;;
+  *)
+    sed -n '2,14p' "$0" | sed 's/^# \{0,1\}//'
+    ;;
+esac
