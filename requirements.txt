@@ -1,5 +1,5 @@
 pillow>=11.0
-pillow-heif>=0.20
+pillow-heif>=1.8.1
 watchdog>=4.0
 markitdown[pdf,docx,pptx,xlsx,xls,outlook]>=0.1.2
 pywebview>=5.0
