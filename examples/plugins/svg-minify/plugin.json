@@ -1,0 +1,19 @@
+{
+  "id": "svg-minify",
+  "name": "SVG Minifier",
+  "version": "1.0.0",
+  "description": "Makes SVG files smaller for the web: removes comments, editor metadata and extra whitespace.",
+  "author": "AirDrop Compress",
+  "homepage": "https://github.com/najathi/airdrop-compress",
+  "api_version": 1,
+  "min_app_version": "2.0.0",
+  "entry": "plugin.py",
+  "file_types": [".svg"],
+  "outputs": [".svg"],
+  "permissions": [],
+  "timeout": 30,
+  "settings": [
+    {"key": "keep_comments", "label": "Keep comments", "type": "bool", "default": false},
+    {"key": "precision", "label": "Decimal places in numbers", "type": "int", "default": 2, "min": 0, "max": 6}
+  ]
+}

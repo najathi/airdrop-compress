@@ -1,115 +1,116 @@
-# AirDrop Compress (macOS)
+# AirDrop Compress
 
-Watches your AirDrop folder and processes every file you receive:
+**Every photo and document you AirDrop to your Mac, made web-ready automatically.**
 
-- **Images** (HEIC, HEIF, JPEG, PNG, TIFF, GIF, BMP, AVIF) → a compressed **WebP** copy.
-- **Documents** (PDF, Word, PowerPoint, Excel, RTF, ODT, HTML, CSV, JSON, EPUB, Outlook `.msg`, ZIP, plain text, code, contact cards…) → a **Markdown** (`.md`) copy.
+AirDrop Compress lives in your menu bar and watches your AirDrop folder:
 
-Everything is saved to one `airdrop-compress` folder inside the AirDrop folder:
+- **Images** (HEIC, JPEG, PNG, TIFF, GIF, BMP, WebP, AVIF) → compressed **WebP**, **AVIF** or **JPEG**, sized and named for the web.
+- **Documents** (PDF, Word, PowerPoint, Excel, RTF, ODT, HTML, CSV, EPUB, Outlook, ZIP, text, code, contacts…) → clean **Markdown**.
+- **Anything else** → add a [plugin](docs/PLUGINS.md).
 
+Results go to an `airdrop-compress` folder inside your AirDrop folder. **Your original files are never changed.**
+
+## Install
+
+1. Download the latest `AirDrop-Compress-x.y.z-arm64.dmg` from [Releases](https://github.com/najathi/airdrop-compress/releases). Builds are for Apple silicon; on an Intel Mac, [build from source](#build-from-source).
+2. Open the `.dmg` and drag **AirDrop Compress** to **Applications**.
+3. Open it from Applications. The first time, macOS may say it's from an unidentified developer, because the app isn't notarised yet. Click **Done**, open **System Settings → Privacy & Security**, scroll down and click **Open Anyway**.
+4. When macOS asks whether AirDrop Compress may access your Desktop or Downloads folder, click **Allow**.
+
+An icon appears in the menu bar. The app starts at login (you can turn this off) and has no Dock icon.
+
+**Requirements:** macOS 12 Monterey or later.
+
+## Using it
+
+AirDrop something to your Mac. It's converted within a few seconds and you get a notification such as *"5 images: 12.4 MB → 3.1 MB (75% smaller)"*.
+
+The **menu bar icon** shows the status (watching, busy, paused, or needs attention) and has **Pause/Resume**, **Open Dashboard**, **Open Output Folder** and **Convert Files…**.
+
+The **Dashboard** shows what happened to every file (done, skipped and why, or failed and why), today's savings, and a drop zone for converting any file on demand.
+
+## Choosing an image format
+
+No single format is best for every image, so you choose. The **Compare formats** tool (under Images) shows how big one of your own images would be in each format with your current settings.
+
+| Format | Best for | Watch out for |
+|---|---|---|
+| **WebP** (default) | General web use. All modern browsers support it, files are 25–35% smaller than JPEG, and it handles transparency and animation. | A few older apps, email clients and print services. |
+| **AVIF** | The smallest photos, often 20–50% smaller than WebP. | Slower to encode; needs Safari 16+ / iOS 16+; some CMSs and social sites reject it. |
+| **JPEG** | Maximum compatibility: email, Office, marketplaces, print. | Largest files; no transparency or animation. |
+| **Auto** | Not knowing where images will end up. It encodes each format and keeps the smallest. | About three times slower; the file type varies from image to image. |
+
+The other image options follow [Google's image best practices](https://developers.google.com/search/docs/appearance/google-images) and [web.dev guidance](https://web.dev/learn/images):
+
+- **Quality** per format (defaults WebP 80, AVIF 60, JPEG 82), and **compression effort** (fast / balanced / smallest).
+- **Target file size.** Lowers quality, never below 30, then shrinks the image until it fits, e.g. "under 200 KB".
+- **Maximum size** (longest edge) and **responsive sizes**: extra `-480w`, `-800w`… copies for `srcset`.
+- **Metadata.** Keep all, remove location (GPS), or remove all. The colour profile is always kept unless you convert to sRGB.
+- **Convert to sRGB**, so colours match on every screen. iPhones shoot in Display P3.
+- **SEO-friendly file names:** `IMG_1286 Beach Day.HEIC` → `img-1286-beach-day.webp`.
+- **JPEG fallback**, for `<picture>` elements and platforms without WebP/AVIF support.
+- **Lossless WebP for PNG graphics** (screenshots, logos), **progressive JPEG**, and **skip if larger**.
+
+## Settings
+
+Settings are grouped into **Images**, **Documents**, **General** and **Plugins**, and every change is saved immediately. They're stored in `~/Library/Application Support/AirDropCompress/settings.json`.
+
+| General setting | Default | |
+|---|---|---|
+| AirDrop folder | Automatic | `~/Desktop/AirDrop` if it exists (for example, if you sort AirDrops there with a Folder Action), otherwise `~/Downloads`. |
+| Output folder | `airdrop-compress` | A name inside the AirDrop folder, or any full path. |
+| Only AirDrop files | On | Skips browser and app downloads (detected from macOS's download tag). |
+| Notifications | On | One per batch. |
+| Open at login | On | |
+| Files at the same time | 2 | |
+| Check for updates | On | Once a day, from GitHub releases. Nothing else is sent. |
+
+**Housekeeping:** *Process files already in the folder* converts what's already there. *Clear history* lets files you receive again be converted again. *Reset* restores the defaults.
+
+## Plugins
+
+Plugins add file types or replace built-in conversions. They run in a **macOS sandbox**: a plugin can read only the file it's converting, can write only its own results, and has no internet access and can't run other programs unless you approve those permissions. A plugin stays off until you turn it on, and is switched off again if its code changes.
+
+Install one under **Plugins → Install plugin…**. To build one, see the **[plugin guide](docs/PLUGINS.md)** and the example in [`examples/plugins/svg-minify`](examples/plugins/svg-minify).
+
+## Updating and uninstalling
+
+- **Update:** the app checks GitHub once a day and shows a banner when a new version is out. Download the new `.dmg` and drag the app to Applications again. Your settings, history and plugins are kept.
+- **Uninstall:** **About → Uninstall…** removes the app, its login item, settings, history, plugins and log. Your original files and the output folder stay.
+
+## Command line
+
+The same engine runs without the menu bar app:
+
+```bash
+python -m airdrop_compress run                      # watch in the foreground
+python -m airdrop_compress scan                     # convert what's already in the folder, then exit
+python -m airdrop_compress settings                 # show the settings file
+python -m airdrop_compress plugin validate <folder> # check a plugin
 ```
-~/Downloads/airdrop-compress/            # default: AirDrop saves to Downloads
-~/Desktop/AirDrop/airdrop-compress/      # if ~/Desktop/AirDrop exists (see below)
-```
 
-If you used an earlier version, its `Image Compressed` folder is renamed to `airdrop-compress` automatically. Your existing WebP files move with it.
+`./airdrop-compress install | enable | disable | status | logs | uninstall` runs it as a background LaunchAgent, as in version 1. Only one watcher (the app or the command line) runs at a time.
 
-AirDrop always saves to `~/Downloads`. Some people use a Folder Action, such as the popular `airdropSorter` script, to move AirDropped files from Downloads into `~/Desktop/AirDrop`. If that folder exists, the tool watches it instead of Downloads. To pick a folder yourself, change `WATCH_DIR` (see Settings).
-
-Your original files are never changed. The tool runs in the background, starts when you log in, and can be turned on or off with one command.
-
-## Install (one time)
-
-Requires Python 3.10+ (`python3 --version`).
+## Build from source
 
 ```bash
 git clone https://github.com/najathi/airdrop-compress.git
 cd airdrop-compress
-./airdrop-compress install
+python3 -m venv .venv
+.venv/bin/pip install -r requirements-dev.txt
+.venv/bin/python -m pytest                    # run the tests
+.venv/bin/python -m airdrop_compress gui      # run the app from source
+packaging/build.sh                            # build dist/AirDrop Compress.app and the .dmg
 ```
 
-This command:
-1. Creates a virtual environment in `.venv` and installs the libraries from `requirements.txt` (Pillow, pillow-heif, watchdog, and Microsoft's [MarkItDown](https://github.com/microsoft/markitdown) for documents).
-2. Installs a LaunchAgent (`~/Library/LaunchAgents/com.<you>.airdrop-compress.plist`) so the tool starts at every login.
-3. Starts it right away.
-
-### Permission for the AirDrop folder
-
-macOS protects the Desktop and Downloads folders. The first time the service runs, you may get a "Python would like to access files in your Desktop folder" prompt. Click **Allow**. If no prompt appears, or the log says *"macOS is blocking access"*, run:
-
-```bash
-./airdrop-compress permissions
-```
-
-It prints the exact Python program to allow and opens **System Settings → Privacy & Security → Full Disk Access**. Click **+**, press **⌘⇧G**, paste the path and turn it on. The service checks again every 30 seconds, so you don't need to restart it.
-
-## Turn it on and off
-
-| Command | What it does |
-|---|---|
-| `./airdrop-compress disable` | Stops watching. It stays off after restarts and logins. |
-| `./airdrop-compress enable` | Starts watching again, now and at every login. |
-| `./airdrop-compress status` | Shows Running, Disabled, or Not installed, plus the last log lines. |
-| `./airdrop-compress logs` | Follows the live log (Ctrl+C to quit). |
-| `./airdrop-compress restart` | Restarts the service. Use this after you change settings. |
-| `./airdrop-compress scan` | One-off: converts files already in the AirDrop folder (skips any it converted before). |
-| `./airdrop-compress run` | Runs in the terminal instead of the background (Ctrl+C to stop). |
-| `./airdrop-compress uninstall` | Removes the LaunchAgent. Your originals and the `airdrop-compress` folder stay. |
-
-Tip: to run these from any folder, add an alias to `~/.zshrc`:
-`alias airdrop-compress="/path/to/airdrop-compress/airdrop-compress"`
-
-## How it works
-
-- **Detection:** it gets file-system events (FSEvents through `watchdog`) for the AirDrop folder. It also rescans the folder every 30 seconds in case an event is missed. Only files that arrive while the service is running count as new. A file counts as new when its name and inode (a file's internal ID) don't match what was in the folder at startup. File dates aren't used, because AirDrop sets them to when the photo was taken.
-- **Waiting for complete files:** before converting, it waits until the file's size stops changing, so large or batched AirDrops are never read half-written. It processes two files at a time and queues the rest.
-- **AirDrop vs. web downloads:** macOS tags every received file with a quarantine flag naming the app it came from. AirDrop files are tagged `sharingd`. Browser and app downloads are tagged with that app's name (Chrome, Firefox, Slack…), and those are skipped. Untagged files, such as ones you copy into the folder yourself, are treated as AirDrop.
-- **Image conversion:**
-  - Applies the iPhone rotation to the pixels, so photos aren't sideways.
-  - Keeps transparency and keeps animated GIFs animated.
-  - Keeps EXIF (date, camera, GPS) and the colour profile.
-  - Saves as WebP at quality 80 with the strongest compression method. Files are written atomically, so you never see a half-written output file.
-- **Document conversion:**
-
-  | Type | How it's converted |
-  |---|---|
-  | PDF, Word (`.docx`), PowerPoint, Excel (`.xlsx`, `.xls`), HTML, CSV, JSON, EPUB, Jupyter, Outlook `.msg`, ZIP, `.txt`/`.md` | [MarkItDown](https://github.com/microsoft/markitdown). Headings, lists and tables become Markdown, slides become sections, and spreadsheets and CSVs become tables. A ZIP gets one section per file inside it. |
-  | Old Word (`.doc`), RTF, OpenDocument (`.odt`), Safari `.webarchive` | macOS's built-in `textutil` converts it to HTML, then MarkItDown converts that. |
-  | Code and config files (`.py`, `.js`, `.sql`, `.yaml`…), logs, contacts (`.vcf`), calendar invites (`.ics`) | Wrapped in a fenced code block under the file name. |
-
-  The Markdown is tidied (no trailing spaces or runs of blank lines). It's plain UTF-8 text, so it stays readable in any editor.
-- **No duplicates:** each file is identified by a SHA-256 hash of its content and recorded in `~/Library/Application Support/AirDropCompress/processed.json`. The same file isn't converted twice, even under a different name. If you delete an output file, receiving that file again re-creates it. If two different files share a name (`IMG_1.HEIC` and `IMG_1.JPG`, or `notes.pdf` and `notes.docx`), the second gets a `-1` suffix.
-- **Notifications:** after each batch you get one macOS notification, e.g. "5 images: 12.4 MB → 3.1 MB (75% smaller). 2 documents converted to Markdown".
-
-## Settings
-
-Edit the top of `airdrop_compress.py`, then run `./airdrop-compress restart`:
-
-| Setting | Default | Meaning |
-|---|---|---|
-| `WEBP_QUALITY` | `80` | 0–100. Higher means better quality and bigger files. 75–85 is visually lossless for photos. |
-| `MAX_DIMENSION` | `None` | For example, `3000` shrinks the long edge to 3000 px for much smaller files. |
-| `KEEP_METADATA` | `True` | Set to `False` to strip EXIF, including GPS location. |
-| `CONVERT_DOCUMENTS` | `True` | Set to `False` to only process images. |
-| `MAX_DOCUMENT_MB` | `100` | Documents bigger than this are skipped. |
-| `SKIP_WEB_DOWNLOADS` | `True` | Set to `False` to process every new file in the folder. |
-| `NOTIFY` | `True` | Batch notifications on or off. |
-| `WORKERS` | `2` | How many files are processed at the same time. |
-
-To watch a different folder, change `WATCH_DIR` (for example back to `~/Downloads` if you stop using the Folder Action).
-
-## Files
-
-```
-airdrop_compress.py   the watcher/converter
-airdrop-compress      control script (install / enable / disable / status / logs ...)
-requirements.txt      Python libraries
-~/Library/Logs/AirDropCompress/airdrop-compress.log         log
-~/Library/Application Support/AirDropCompress/processed.json  record of converted files
-```
+For a signed and notarised build (no Gatekeeper warning), set `SIGN_IDENTITY` and `NOTARY_PROFILE`. The top of [`packaging/build.sh`](packaging/build.sh) explains how. See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for how the code is organised.
 
 ## Troubleshooting
 
-- **Nothing happens:** run `./airdrop-compress status`, then `./airdrop-compress logs`. A *"blocking access"* message means the folder permission is missing (see above).
-- **An old photo wasn't converted:** only files that arrive after the service starts are processed. Use `./airdrop-compress scan` to backfill.
-- **A file was skipped:** the log says why for each one. It might have no converter (for example videos, ProRAW `.DNG`, or Apple Pages/Numbers/Keynote files), it might be a scanned PDF with no text in it, or it might have been downloaded by a browser.
+- **Nothing happens:** check the menu bar icon and the Dashboard banner. *"macOS is blocking access"* means you need to allow the app under **System Settings → Privacy & Security → Files and Folders** (or Full Disk Access). It continues by itself once allowed.
+- **A file was skipped:** the Dashboard shows the reason, for example a browser download, a duplicate, an unsupported type such as Pages/Numbers/Keynote or video, or a scanned PDF with no text.
+- **Log:** `~/Library/Logs/AirDropCompress/airdrop-compress.log` (or **About → Log → Show**).
+
+## License
+
+[MIT](LICENSE). Document conversion uses [Microsoft MarkItDown](https://github.com/microsoft/markitdown). Image codecs are libwebp, libavif, libjpeg-turbo and libheif (via Pillow and pillow-heif).

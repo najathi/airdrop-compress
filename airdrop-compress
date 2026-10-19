@@ -1,10 +1,13 @@
 #!/bin/bash
-# Control the AirDrop background service, a macOS LaunchAgent (images -> WebP, documents -> Markdown).
+# Command-line control for AirDrop Compress (headless, no menu bar app).
+#
+# Most people should install the app instead (see README). This script runs the same
+# engine as a background LaunchAgent and shares the app's settings file.
 #
 #   ./airdrop-compress install     set up the venv + LaunchAgent and start it (runs at every login)
 #   ./airdrop-compress disable     stop it, and keep it off after restarts/logins
 #   ./airdrop-compress enable      turn it back on (now and at every login)
-#   ./airdrop-compress restart     restart it (after editing settings in airdrop_compress.py)
+#   ./airdrop-compress restart     restart it (settings: ~/Library/Application Support/AirDropCompress/settings.json)
 #   ./airdrop-compress status      show whether it is running
 #   ./airdrop-compress logs        follow the log
 #   ./airdrop-compress scan        one-off: convert files already in the AirDrop folder
@@ -18,7 +21,6 @@ LABEL="com.${USER}.airdrop-compress"
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 VENV="$DIR/.venv"
 PY="$VENV/bin/python"
-SCRIPT="$DIR/airdrop_compress.py"
 PLIST="$HOME/Library/LaunchAgents/$LABEL.plist"
 LOG_DIR="$HOME/Library/Logs/AirDropCompress"
 LOG="$LOG_DIR/airdrop-compress.log"
@@ -44,10 +46,6 @@ setup_venv() {
 
 write_plist() {
   mkdir -p "$(dirname "$PLIST")" "$LOG_DIR"
-  local env_block=""
-  if [[ -n "${AIRDROP_DIR:-}" ]]; then
-    env_block="<key>EnvironmentVariables</key><dict><key>AIRDROP_DIR</key><string>$AIRDROP_DIR</string></dict>"
-  fi
   cat >"$PLIST" <<EOF
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -58,16 +56,18 @@ write_plist() {
   <array>
     <string>$PY</string>
     <string>-u</string>
-    <string>$SCRIPT</string>
+    <string>-m</string>
+    <string>airdrop_compress</string>
+    <string>run</string>
   </array>
   <key>WorkingDirectory</key><string>$DIR</string>
+  <key>EnvironmentVariables</key><dict><key>PYTHONPATH</key><string>$DIR</string>${AIRDROP_DIR:+<key>AIRDROP_DIR</key><string>$AIRDROP_DIR</string>}</dict>
   <key>RunAtLoad</key><true/>
   <key>KeepAlive</key><dict><key>SuccessfulExit</key><false/></dict>
   <key>ThrottleInterval</key><integer>10</integer>
   <key>ProcessType</key><string>Background</string>
   <key>StandardOutPath</key><string>$LOG</string>
   <key>StandardErrorPath</key><string>$LOG</string>
-  $env_block
 </dict>
 </plist>
 EOF
@@ -113,11 +113,12 @@ case "${1:-help}" in
     write_plist
     start
     echo "Installed and running. It will start automatically when you log in."
-    echo "Converted files go to: $("$PY" -c "import sys; sys.path.insert(0, \"$DIR\"); import airdrop_compress as a; print(a.OUTPUT_DIR)" 2>/dev/null)"
+    echo "Converted files go to: $("$PY" -c "import sys; sys.path.insert(0, \"$DIR\"); from airdrop_compress.settings import SettingsManager, resolve_output_folder; print(resolve_output_folder(SettingsManager().current))" 2>/dev/null)"
     check_access
     ;;
   enable|start)
     require_installed
+    write_plist  # refresh it in case it was written by an older version
     start
     echo "Enabled - watching for AirDrop files (also at every login)."
     check_access
@@ -130,6 +131,7 @@ case "${1:-help}" in
   restart)
     require_installed
     stop
+    write_plist
     start
     echo "Restarted."
     ;;
@@ -151,10 +153,10 @@ case "${1:-help}" in
     tail -n 50 -f "$LOG"
     ;;
   scan)
-    "$PY" "$SCRIPT" --scan-existing
+    PYTHONPATH="$DIR" "$PY" -m airdrop_compress scan
     ;;
   run)
-    "$PY" "$SCRIPT"
+    PYTHONPATH="$DIR" "$PY" -m airdrop_compress run
     ;;
   permissions)
     bin="$(real_python)"
@@ -173,6 +175,6 @@ case "${1:-help}" in
     echo "Uninstalled. Your originals and the 'airdrop-compress' output folder were left untouched."
     ;;
   *)
-    sed -n '2,14p' "$0" | sed 's/^# \{0,1\}//'
+    sed -n '2,17p' "$0" | sed 's/^# \{0,1\}//'
     ;;
 esac
