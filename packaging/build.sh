@@ -62,11 +62,15 @@ step "Smoke test"
 "$APP/Contents/MacOS/$APP_NAME" plugin validate examples/plugins/svg-minify
 
 step "Creating $DMG"
-STAGE="build/dmg"
-rm -rf "$STAGE" "$DMG" && mkdir -p "$STAGE"
-cp -R "$APP" "$STAGE/"
-ln -s /Applications "$STAGE/Applications"
-hdiutil create -quiet -volname "$APP_NAME $VERSION" -srcfolder "$STAGE" -ov -format UDZO "$DMG"
+rm -f "$DMG"
+"$PY" packaging/make_dmg_background.py build/dmg-assets
+# dmgbuild lays out the window (background, icon positions) without scripting Finder.
+"$PY" -m dmgbuild -s packaging/dmg_settings.py \
+  -D app="$APP" \
+  -D guide="packaging/How to open AirDrop Compress.html" \
+  -D background="build/dmg-assets/background.png" \
+  -D icon="build/AppIcon.icns" \
+  "$APP_NAME" "$DMG"
 if [[ -n "${SIGN_IDENTITY:-}" ]]; then
   codesign --force --timestamp --sign "$SIGN_IDENTITY" "$DMG"
 fi

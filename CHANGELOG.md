@@ -12,6 +12,7 @@
 - **Installer:** `packaging/build.sh` builds `AirDrop Compress.app` and a `.dmg`, with Developer ID signing and notarisation available.
 - In-app update check (GitHub releases) and uninstall.
 - Test suite (pytest).
+- Installer window with drag-to-Applications artwork and an illustrated "How to open" guide for the first launch.
 
 ### Changed
 - The output folder is `airdrop-compress` (it was `Image Compressed`, which is renamed automatically).

@@ -14,7 +14,7 @@ Results go to an `airdrop-compress` folder inside your AirDrop folder. **Your or
 
 1. Download the latest `AirDrop-Compress-x.y.z-arm64.dmg` from [Releases](https://github.com/najathi/airdrop-compress/releases). Builds are for Apple silicon; on an Intel Mac, [build from source](#build-from-source).
 2. Open the `.dmg` and drag **AirDrop Compress** to **Applications**.
-3. Open it from Applications. The first time, macOS may say it's from an unidentified developer, because the app isn't notarised yet. Click **Done**, open **System Settings → Privacy & Security**, scroll down and click **Open Anyway**.
+3. Open it from Applications. The app isn't notarised yet, so the first time macOS says it can't verify it. Click **Done**, open **System Settings → Privacy & Security**, scroll down and click **Open Anyway**. The disk image includes an illustrated **How to open** guide. Or, in Terminal: `xattr -dr com.apple.quarantine "/Applications/AirDrop Compress.app"`.
 4. When macOS asks whether AirDrop Compress may access your Desktop or Downloads folder, click **Allow**.
 
 An icon appears in the menu bar. The app starts at login (you can turn this off) and has no Dock icon.
