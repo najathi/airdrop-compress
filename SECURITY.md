@@ -12,7 +12,7 @@ Please include the affected version, steps to reproduce, and the impact you expe
 
 | Version | Supported |
 |---|---|
-| 2.1.x | ✅ |
+| 2.1.x | ✅ (2.1.1 or later recommended) |
 | 2.0.x | Upgrade to 2.1 (it contains security fixes) |
 | 1.x | ❌ |
 

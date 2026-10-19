@@ -337,6 +337,10 @@ class Engine:
                 return 1
             self._migrate_output_folder()
             self.output_dir.mkdir(parents=True, exist_ok=True)
+            # Work folders left behind if the app was stopped mid-conversion (we hold the lock,
+            # so none of them is in use).
+            for leftover in self.output_dir.glob(".work-*"):
+                shutil.rmtree(leftover, ignore_errors=True)
 
             workers = [threading.Thread(target=self._worker, daemon=True, name=f"worker-{i}")
                        for i in range(s.general.workers)]

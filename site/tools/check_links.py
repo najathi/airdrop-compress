@@ -54,10 +54,16 @@ for f, c in pages.items():
             errors.append(f"{f.relative_to(OUT)}: missing anchor {link}")
 
 if "--external" in sys.argv:
+    import ssl
+    try:
+        import certifi
+        context = ssl.create_default_context(cafile=certifi.where())
+    except ImportError:
+        context = ssl.create_default_context()
     for url in sorted(external):
         try:
-            req = urllib.request.Request(url, method="HEAD", headers={"User-Agent": "link-check"})
-            code = urllib.request.urlopen(req, timeout=15).status
+            req = urllib.request.Request(url, method="HEAD", headers={"User-Agent": "Mozilla/5.0 link-check"})
+            code = urllib.request.urlopen(req, timeout=15, context=context).status
         except urllib.error.HTTPError as e:
             code = e.code
         except Exception as e:  # noqa: BLE001

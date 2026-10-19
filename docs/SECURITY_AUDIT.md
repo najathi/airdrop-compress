@@ -1,4 +1,4 @@
-# Security audit: version 2.1.0
+# Security audit: version 2.1
 
 **Date:** 19 October 2026 · **Scope:** the app (engine, processors, plugins, UI bridge), build and packaging scripts, the update mechanism, the GitHub repository, and the website.
 
@@ -32,6 +32,9 @@
 - Error messages showed raw library text and full paths. They now show plain language ("Not a valid image, or the file is damaged").
 - Notification text showed `→` instead of "→" (AppleScript doesn't understand JSON escapes).
 - Memory grew slowly in long sessions (the record of seen files was never pruned).
+- **The app refused quit requests from macOS** (logout, restart, shutdown), because pywebview routed them through the window's close handler, which only hides the window. Fixed in 2.1.1 by handling `applicationShouldTerminate:` directly.
+- The window's local server used a fixed port, so it could stay blank if another app (or a second copy) was using that port. It now uses a free port each time.
+- Unfinished work folders from an interrupted conversion are removed at the next start.
 
 ## Reviewed and found sound
 

@@ -128,8 +128,12 @@ class MenuController(AppKit.NSObject):
         self.app.quit()
 
 
-def _handle_reopen(app):
-    """Show the window when the app is opened again from Finder/Launchpad."""
+def _install_app_delegate_hooks(app):
+    """Hook pywebview's app delegate:
+    - reopening the app from Finder/Launchpad shows the window;
+    - a quit request from macOS (logout, restart, shutdown, Quit in the Dock or Activity
+      Monitor) quits right away. Without this, pywebview routes it through the window's
+      "closing" event, which only hides the window, so the app would block a restart."""
     try:
         from webview.platforms.cocoa import BrowserView
     except ImportError:
@@ -139,16 +143,23 @@ def _handle_reopen(app):
         app.show_window()
         return True
 
-    objc.classAddMethods(BrowserView.AppDelegate, [objc.selector(
-        applicationShouldHandleReopen_hasVisibleWindows_,
-        selector=b"applicationShouldHandleReopen:hasVisibleWindows:", signature=b"Z@:@Z")])
+    def applicationShouldTerminate_(self, ns_app):
+        app.prepare_for_exit()
+        return AppKit.NSTerminateNow
+
+    objc.classAddMethods(BrowserView.AppDelegate, [
+        objc.selector(applicationShouldHandleReopen_hasVisibleWindows_,
+                      selector=b"applicationShouldHandleReopen:hasVisibleWindows:", signature=b"Z@:@Z"),
+        objc.selector(applicationShouldTerminate_,
+                      selector=b"applicationShouldTerminate:", signature=b"I@:@"),
+    ])
 
 
 def install(app) -> None:
     ns_app = AppKit.NSApplication.sharedApplication()
     # Menu bar app: no Dock icon (the packaged app also sets LSUIElement).
     ns_app.setActivationPolicy_(AppKit.NSApplicationActivationPolicyAccessory)
-    _handle_reopen(app)
+    _install_app_delegate_hooks(app)
 
     def create():
         app.menu_bar = MenuController.alloc().initWithApp_(app)
