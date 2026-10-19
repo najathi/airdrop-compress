@@ -82,6 +82,14 @@ class App:
         self.window.show()
         self.window.restore()
 
+    def prepare_for_exit(self) -> None:
+        """macOS is terminating the app: stop quickly (results are written atomically,
+        and unfinished work folders are cleaned up at the next start)."""
+        self.quitting = True
+        log.info("Quitting (requested by macOS).")
+        self.engine.stop_event.set()
+        self.engine.notifier.flush()
+
     def quit(self) -> None:
         if self.quitting:
             return
@@ -122,6 +130,15 @@ class App:
                 macos.notify(APP_NAME, f"Version {info['latest']} is available - open the app to update.")
 
 
+def free_port() -> int:
+    """A port that's free on 127.0.0.1 for the window's local server. (pywebview's own pick
+    checks "localhost", which can be IPv6, so it occasionally collides and the window stays blank.)"""
+    import socket
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        s.bind(("127.0.0.1", 0))
+        return s.getsockname()[1]
+
+
 def json_dumps(obj) -> str:
     import json
     return json.dumps(obj)
@@ -146,6 +163,7 @@ def run_app(background: bool = False) -> int:
     def started():
         app._after_start()
 
-    webview.start(started, private_mode=False, storage_path=str(paths.SUPPORT_DIR / "webview"))
+    webview.start(started, private_mode=False, storage_path=str(paths.SUPPORT_DIR / "webview"),
+                  http_port=free_port())
     app.engine.stop()
     return 0

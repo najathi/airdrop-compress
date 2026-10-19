@@ -1,5 +1,13 @@
 # Changelog
 
+## 2.1.1 - 2026-10-19
+
+### Fixed
+- **The app no longer blocks logout, restart or shutdown.** Quit requests from macOS were treated like closing the window (which only hides it), so the app refused to quit. This affected 2.0 and 2.1.0; please update.
+- The window could stay blank when another app was using the same local port; the app now picks a free port each time.
+- Unfinished work folders left by an interrupted conversion are cleaned up at the next start.
+- Empty files are reported once, not again on every rescan.
+
 ## 2.1.0 - 2026-10-19
 
 ### Security
