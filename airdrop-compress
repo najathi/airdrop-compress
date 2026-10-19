@@ -1,5 +1,5 @@
 #!/bin/bash
-# Control the AirDrop -> WebP background service (a macOS LaunchAgent).
+# Control the AirDrop background service, a macOS LaunchAgent (images -> WebP, documents -> Markdown).
 #
 #   ./airdrop-compress install     set up the venv + LaunchAgent and start it (runs at every login)
 #   ./airdrop-compress disable     stop it, and keep it off after restarts/logins
@@ -7,10 +7,10 @@
 #   ./airdrop-compress restart     restart it (after editing settings in airdrop_compress.py)
 #   ./airdrop-compress status      show whether it is running
 #   ./airdrop-compress logs        follow the log
-#   ./airdrop-compress scan        one-off: convert images already in the AirDrop folder
+#   ./airdrop-compress scan        one-off: convert files already in the AirDrop folder
 #   ./airdrop-compress run         run in the foreground (Ctrl+C to stop)
 #   ./airdrop-compress permissions open the Full Disk Access settings
-#   ./airdrop-compress uninstall   remove the LaunchAgent (keeps converted images)
+#   ./airdrop-compress uninstall   remove the LaunchAgent (keeps converted files)
 
 set -euo pipefail
 
@@ -37,7 +37,7 @@ setup_venv() {
     echo "Creating virtual environment..."
     python3 -m venv "$VENV"
   fi
-  echo "Installing libraries (Pillow, pillow-heif, watchdog)..."
+  echo "Installing libraries (Pillow, pillow-heif, watchdog, markitdown)..."
   "$PY" -m pip install --quiet --upgrade pip
   "$PY" -m pip install --quiet -r "$DIR/requirements.txt"
 }
@@ -113,13 +113,13 @@ case "${1:-help}" in
     write_plist
     start
     echo "Installed and running. It will start automatically when you log in."
-    echo "Converted images go to: $("$PY" -c "import sys; sys.path.insert(0, \"$DIR\"); import airdrop_compress as a; print(a.OUTPUT_DIR)" 2>/dev/null)"
+    echo "Converted files go to: $("$PY" -c "import sys; sys.path.insert(0, \"$DIR\"); import airdrop_compress as a; print(a.OUTPUT_DIR)" 2>/dev/null)"
     check_access
     ;;
   enable|start)
     require_installed
     start
-    echo "Enabled - watching for AirDrop images (also at every login)."
+    echo "Enabled - watching for AirDrop files (also at every login)."
     check_access
     ;;
   disable|stop)
@@ -170,7 +170,7 @@ case "${1:-help}" in
     stop
     launchctl enable "$SERVICE" 2>/dev/null || true  # clear the persistent 'disabled' flag
     rm -f "$PLIST"
-    echo "Uninstalled. Your originals and the 'Image Compressed' folder were left untouched."
+    echo "Uninstalled. Your originals and the 'airdrop-compress' output folder were left untouched."
     ;;
   *)
     sed -n '2,14p' "$0" | sed 's/^# \{0,1\}//'

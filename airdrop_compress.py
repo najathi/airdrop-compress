@@ -1,10 +1,13 @@
 #!/usr/bin/env python3
 """
-AirDrop -> WebP auto-compressor for macOS.
+AirDrop auto-processor for macOS.
 
-Watches the AirDrop folder (~/Downloads, or ~/Desktop/AirDrop if it exists), and every time a new image arrives
-(HEIC, HEIF, JPEG, PNG, TIFF, GIF, BMP, AVIF) it writes a compressed WebP copy
-to an "Image Compressed" folder inside it. The original file is never modified.
+Watches the AirDrop folder (~/Downloads, or ~/Desktop/AirDrop if it exists). Every
+new file that arrives is processed into an "airdrop-compress" folder inside it:
+  - images (HEIC, HEIF, JPEG, PNG, TIFF, GIF, BMP, AVIF) -> compressed WebP
+  - documents (PDF, Word, PowerPoint, Excel, RTF, ODT, HTML, CSV, EPUB, text,
+    code, contacts...) -> Markdown
+The original file is never modified.
 
 Run in the foreground:   .venv/bin/python airdrop_compress.py
 Backfill existing files: .venv/bin/python airdrop_compress.py --scan-existing  (one-off)
@@ -16,7 +19,7 @@ from __future__ import annotations
 
 import time
 
-# Captured before the (slow) image-library imports so files that arrive while
+# Captured before the (slow) library imports so files that arrive while
 # the service is starting up still count as new.
 PROCESS_STARTED = time.time()
 
@@ -27,9 +30,11 @@ import json
 import logging
 import os
 import queue
+import re
 import signal
 import subprocess
 import sys
+import tempfile
 import threading
 from pathlib import Path
 
@@ -51,7 +56,8 @@ _SORTED_AIRDROP_DIR = Path("~/Desktop/AirDrop").expanduser()
 WATCH_DIR = Path(os.environ.get(
     "AIRDROP_DIR", _SORTED_AIRDROP_DIR if _SORTED_AIRDROP_DIR.is_dir() else "~/Downloads",
 )).expanduser()
-OUTPUT_DIR = WATCH_DIR / "Image Compressed"
+OUTPUT_DIR = WATCH_DIR / "airdrop-compress"     # all processed files go here
+LEGACY_OUTPUT_DIR = WATCH_DIR / "Image Compressed"  # old name, renamed on start-up
 
 WEBP_QUALITY = 80        # 0-100. 75-85 looks the same as the original for photos.
 WEBP_METHOD = 6          # 0 (fast) - 6 (slowest, smallest file).
@@ -59,23 +65,45 @@ WEBP_MAX_SIDE = 16383    # Hard limit of the WebP format (very wide panoramas ge
 MAX_DIMENSION = None     # e.g. 3000 to shrink the long edge to 3000px; None = keep size.
 KEEP_METADATA = True     # Keep EXIF (date, camera, GPS) and colour profile.
 
+CONVERT_DOCUMENTS = True  # Convert documents to Markdown.
+MAX_DOCUMENT_MB = 100     # Bigger documents are skipped (conversion would take ages).
+
 # Browser/app downloads carry a quarantine tag naming the app (Chrome, Firefox...);
-# AirDrop files are tagged "sharingd" or not at all. This skips the web ones.
+# AirDrop files are tagged "sharingd", a blank name, or not at all. This skips the web ones.
 SKIP_WEB_DOWNLOADS = True
 
 NOTIFY = True            # macOS notification after each batch.
-WORKERS = 2              # Images converted in parallel.
+WORKERS = 2              # Files processed in parallel.
 RESCAN_SECONDS = 30      # Safety-net rescan in case a file event was missed.
 
 STATE_DIR = Path("~/Library/Application Support/AirDropCompress").expanduser()
 STATE_FILE = STATE_DIR / "processed.json"
 
-CANDIDATE_EXTS = {
+CANDIDATE_IMAGE_EXTS = {
     ".heic", ".heif", ".hif", ".jpg", ".jpeg", ".png",
     ".tif", ".tiff", ".bmp", ".gif", ".avif",
 }
 # Only the formats this Pillow build can actually read.
-SUPPORTED_EXTS = CANDIDATE_EXTS & set(Image.registered_extensions())
+IMAGE_EXTS = CANDIDATE_IMAGE_EXTS & set(Image.registered_extensions())
+
+# Converted by MarkItDown (https://github.com/microsoft/markitdown).
+MARKITDOWN_EXTS = {
+    ".pdf", ".docx", ".pptx", ".xlsx", ".xls", ".csv", ".html", ".htm", ".xhtml",
+    ".json", ".txt", ".text", ".md", ".markdown", ".epub", ".ipynb", ".msg", ".zip",
+}
+# Older formats: macOS's built-in `textutil` turns them into HTML first.
+TEXTUTIL_EXTS = {".doc", ".rtf", ".odt", ".webarchive", ".wordml"}
+# Plain-text files kept as a fenced code block (extension -> highlighting language).
+CODE_EXTS = {
+    ".py": "python", ".js": "javascript", ".ts": "typescript", ".jsx": "jsx", ".tsx": "tsx",
+    ".sh": "bash", ".zsh": "bash", ".sql": "sql", ".php": "php", ".rb": "ruby",
+    ".go": "go", ".java": "java", ".kt": "kotlin", ".swift": "swift", ".c": "c",
+    ".h": "c", ".cpp": "cpp", ".cs": "csharp", ".rs": "rust", ".css": "css",
+    ".scss": "scss", ".xml": "xml", ".yaml": "yaml", ".yml": "yaml", ".toml": "toml",
+    ".ini": "ini", ".env": "", ".log": "", ".tex": "latex", ".vcf": "", ".ics": "",
+    ".jsonl": "json",
+}
+DOCUMENT_EXTS = MARKITDOWN_EXTS | TEXTUTIL_EXTS | set(CODE_EXTS)
 
 # Incomplete download names from browsers - never touch these.
 PARTIAL_SUFFIXES = (".download", ".crdownload", ".part", ".tmp")
@@ -115,14 +143,24 @@ def quarantine_agent(path: Path) -> str | None:
     return parts[2] if len(parts) > 2 else ""
 
 
-def is_candidate(path: Path) -> bool:
+def is_relevant(path: Path) -> bool:
+    """A visible, complete file directly inside the watched folder."""
     name = path.name
     return (
         not name.startswith(".")
         and not name.lower().endswith(PARTIAL_SUFFIXES)
-        and path.suffix.lower() in SUPPORTED_EXTS
         and path.parent == WATCH_DIR
     )
+
+
+def kind_of(path: Path) -> str | None:
+    """'image', 'document', or None if there's no converter for this file type."""
+    ext = path.suffix.lower()
+    if ext in IMAGE_EXTS:
+        return "image"
+    if CONVERT_DOCUMENTS and ext in DOCUMENT_EXTS:
+        return "document"
+    return None
 
 
 def wait_until_complete(path: Path, timeout: float = 300) -> bool:
@@ -185,9 +223,64 @@ def convert_to_webp(src: Path, dst: Path) -> None:
     os.replace(tmp, dst)  # atomic: never leaves a half-written .webp behind
 
 
-def convert_safely(src: Path, dst: Path) -> None:
+class NoTextFound(Exception):
+    """The document converted fine but contains no text (e.g. a scanned PDF)."""
+
+
+_local = threading.local()
+
+
+def markitdown():
+    # One converter per worker thread; the import is slow, so only pay for it when needed.
+    if not hasattr(_local, "md"):
+        from markitdown import MarkItDown
+        _local.md = MarkItDown(enable_plugins=False)
+    return _local.md
+
+
+def tidy_markdown(text: str) -> str:
+    """Strip trailing spaces, page-break characters and runs of blank lines."""
+    text = text.replace("\r\n", "\n").replace("\r", "\n").replace("\f", "\n")
+    text = "\n".join(line.rstrip() for line in text.split("\n"))
+    text = re.sub(r"\n{3,}", "\n\n", text)
+    return text.strip() + "\n"
+
+
+def document_to_markdown(src: Path) -> str:
+    ext = src.suffix.lower()
+    if ext in CODE_EXTS:
+        body = src.read_bytes().decode("utf-8", errors="replace")
+        fence = "```"
+        while fence in body:
+            fence += "`"
+        return f"# {src.name}\n\n{fence}{CODE_EXTS[ext]}\n{body.rstrip()}\n{fence}\n"
+    if ext in TEXTUTIL_EXTS:
+        with tempfile.TemporaryDirectory() as tmp:
+            html = Path(tmp) / f"{src.stem}.html"
+            subprocess.run(
+                ["/usr/bin/textutil", "-convert", "html", "-output", str(html), str(src)],
+                check=True, capture_output=True, timeout=300,
+            )
+            return markitdown().convert(str(html)).markdown
+    return markitdown().convert(str(src)).markdown
+
+
+def convert_to_markdown(src: Path, dst: Path) -> None:
+    # Converters sometimes quote the full path (e.g. "Content from the zip file /Users/...").
+    text = tidy_markdown(document_to_markdown(src).replace(str(src), src.name))
+    if not text.strip():
+        raise NoTextFound
+    tmp = dst.with_name(f".{dst.name}.tmp")
+    tmp.write_text(text, encoding="utf-8")
+    os.replace(tmp, dst)
+
+
+def convert_safely(kind: str, src: Path, dst: Path) -> None:
     try:
-        convert_to_webp(src, dst)
+        if kind == "image":
+            convert_to_webp(src, dst)
+        else:
+            convert_to_markdown(src, dst)
     except BaseException:
         dst.with_name(f".{dst.name}.tmp").unlink(missing_ok=True)
         raise
@@ -198,7 +291,7 @@ def convert_safely(src: Path, dst: Path) -> None:
 # --------------------------------------------------------------------------- #
 
 class ProcessedStore:
-    """Remembers images by content hash, so the same photo is only converted once."""
+    """Remembers files by content hash, so the same file is only converted once."""
 
     def __init__(self, path: Path):
         self.path = path
@@ -254,16 +347,18 @@ class BatchNotifier:
         self.delay = delay
         self.lock = threading.Lock()
         self.timer: threading.Timer | None = None
-        self.count = self.before = self.after = self.failed = 0
+        self.images = self.documents = self.before = self.after = self.failed = 0
 
-    def add(self, before: int = 0, after: int = 0, failed: bool = False) -> None:
+    def add(self, kind: str = "", before: int = 0, after: int = 0, failed: bool = False) -> None:
         with self.lock:
             if failed:
                 self.failed += 1
-            else:
-                self.count += 1
+            elif kind == "image":
+                self.images += 1
                 self.before += before
                 self.after += after
+            else:
+                self.documents += 1
             if self.timer:
                 self.timer.cancel()
             self.timer = threading.Timer(self.delay, self.flush)
@@ -272,15 +367,19 @@ class BatchNotifier:
 
     def flush(self) -> None:
         with self.lock:
-            count, before, after, failed = self.count, self.before, self.after, self.failed
-            self.count = self.before = self.after = self.failed = 0
+            images, documents = self.images, self.documents
+            before, after, failed = self.before, self.after, self.failed
+            self.images = self.documents = self.before = self.after = self.failed = 0
             if self.timer:
                 self.timer.cancel()
         parts = []
-        if count:
+        if images:
             saved = 100 - (after / before * 100) if before else 0
-            noun = "image" if count == 1 else "images"
-            parts.append(f"{count} {noun}: {human(before)} -> {human(after)} ({saved:.0f}% smaller)")
+            noun = "image" if images == 1 else "images"
+            parts.append(f"{images} {noun}: {human(before)} -> {human(after)} ({saved:.0f}% smaller)")
+        if documents:
+            noun = "document" if documents == 1 else "documents"
+            parts.append(f"{documents} {noun} converted to Markdown")
         if failed:
             parts.append(f"{failed} failed - see log")
         if parts:
@@ -299,11 +398,12 @@ class Compressor:
         self.seen: dict[Path, tuple[int, int]] = {}  # path -> (size, mtime) handled this run
         self.pending_lock = threading.Lock()
         self.reserved_names: set[str] = set()
+        self.unsupported_logged: set[str] = set()
         self.names_lock = threading.Lock()
         self.stop_event = threading.Event()
         self.store = ProcessedStore(STATE_FILE)
         self.notifier = BatchNotifier()
-        # Images already in the folder when we start are "old" and left alone
+        # Files already in the folder when we start are "old" and left alone
         # (unless backfilling). Anything else that shows up is new.
         self.old_files: dict[str, int] = {} if scan_existing else self.snapshot()
 
@@ -331,7 +431,7 @@ class Compressor:
     # -- queueing --------------------------------------------------------- #
 
     def enqueue(self, path: Path) -> None:
-        if not is_candidate(path):
+        if not is_relevant(path):
             return
         try:
             st = path.stat()
@@ -339,6 +439,12 @@ class Compressor:
             return
         if self.old_files.get(path.name) == st.st_ino:
             return  # was here before we started (e.g. an old photo being edited)
+        if kind_of(path) is None:
+            if path.name not in self.unsupported_logged:
+                self.unsupported_logged.add(path.name)
+                log.info("Skipped %s (no converter for %s files)",
+                         path.name, path.suffix.lower() or "extension-less")
+            return
         # Already handled, unless the content changed.
         if self.seen.get(path) == (st.st_size, st.st_mtime_ns):
             return
@@ -349,7 +455,7 @@ class Compressor:
         self.queue.put(path)
 
     def rescan(self) -> None:
-        """Pick up any new image in the folder that no event told us about."""
+        """Pick up any new file in the folder that no event told us about."""
         try:
             entries = list(os.scandir(WATCH_DIR))
         except OSError as e:
@@ -359,12 +465,12 @@ class Compressor:
             if entry.is_file():
                 self.enqueue(Path(entry.path))
 
-    def reserve_output_path(self, src: Path) -> Path:
+    def reserve_output_path(self, src: Path, suffix: str) -> Path:
         """Pick a free name in the output folder (IMG_1.HEIC and IMG_1.JPG -> IMG_1-1.webp)."""
         with self.names_lock:
-            out, n = OUTPUT_DIR / f"{src.stem}.webp", 1
+            out, n = OUTPUT_DIR / f"{src.stem}{suffix}", 1
             while out.exists() or out.name in self.reserved_names:
-                out, n = OUTPUT_DIR / f"{src.stem}-{n}.webp", n + 1
+                out, n = OUTPUT_DIR / f"{src.stem}-{n}{suffix}", n + 1
             self.reserved_names.add(out.name)
             return out
 
@@ -391,12 +497,17 @@ class Compressor:
             return
         st = src.stat()
         self.seen[src] = (st.st_size, st.st_mtime_ns)
+        kind = kind_of(src)
 
         if SKIP_WEB_DOWNLOADS:
             agent = quarantine_agent(src)
-            if agent is not None and agent.lower() not in AIRDROP_AGENTS:
-                log.info("Skipped %s (downloaded by %s, not AirDrop)", src.name, agent or "an app")
+            if agent and agent.lower() not in AIRDROP_AGENTS:
+                log.info("Skipped %s (downloaded by %s, not AirDrop)", src.name, agent)
                 return
+
+        if kind == "document" and st.st_size > MAX_DOCUMENT_MB * 1024 * 1024:
+            log.info("Skipped %s (larger than %d MB)", src.name, MAX_DOCUMENT_MB)
+            return
 
         digest = sha256(src)
         reason = self.store.claim(digest)
@@ -407,21 +518,26 @@ class Compressor:
         dst = None
         try:
             OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
-            dst = self.reserve_output_path(src)
+            dst = self.reserve_output_path(src, ".webp" if kind == "image" else ".md")
             for attempt in range(3):
                 try:
-                    convert_safely(src, dst)
+                    convert_safely(kind, src, dst)
                     break
-                except OSError:
+                except (OSError, subprocess.CalledProcessError):
                     # Truncated/locked file - give AirDrop a moment and retry.
                     if attempt == 2:
                         raise
                     time.sleep(2)
             before, after = st.st_size, dst.stat().st_size
             log.info("Converted %s -> %s (%s -> %s)", src.name, dst.name, human(before), human(after))
-            self.notifier.add(before, after)
+            self.notifier.add(kind, before, after)
+        except NoTextFound:
+            log.info("Skipped %s (no text found - a scanned or image-only document?)", src.name)
+            with self.names_lock:
+                self.reserved_names.discard(dst.name)
+            dst = None
         except Exception as e:
-            log.error("Failed to convert %s: %s", src.name, e)
+            log.error("Failed to convert %s: %s", src.name, str(e).strip() or type(e).__name__)
             self.notifier.add(failed=True)
             if dst:
                 with self.names_lock:
@@ -456,11 +572,30 @@ class Compressor:
                 return False
         return False
 
+    @staticmethod
+    def migrate_output_folder() -> None:
+        """Rename the old "Image Compressed" folder to the new central output folder."""
+        if not LEGACY_OUTPUT_DIR.is_dir():
+            return
+        if not OUTPUT_DIR.exists():
+            LEGACY_OUTPUT_DIR.rename(OUTPUT_DIR)
+            log.info("Renamed %s -> %s", LEGACY_OUTPUT_DIR.name, OUTPUT_DIR.name)
+            return
+        # Both exist: move the old files over (never overwriting), then drop the old folder.
+        for item in LEGACY_OUTPUT_DIR.iterdir():
+            if not (OUTPUT_DIR / item.name).exists():
+                item.rename(OUTPUT_DIR / item.name)
+        try:
+            LEGACY_OUTPUT_DIR.rmdir()
+        except OSError:
+            log.warning("Left %s in place: some files already exist in %s", LEGACY_OUTPUT_DIR, OUTPUT_DIR)
+
     def run(self) -> int:
         if not self.wait_for_folder_access():
             return 1
         if not self.scan_existing and not self.old_files:
             self.old_files = self.snapshot()  # access was only just granted
+        self.migrate_output_folder()
         OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
         threads = [threading.Thread(target=self.worker, daemon=True) for _ in range(WORKERS)]
@@ -469,7 +604,7 @@ class Compressor:
 
         if self.scan_existing:
             # One-off backfill: convert what's already there, then exit.
-            log.info("Scanning existing images in %s ...", WATCH_DIR)
+            log.info("Scanning existing files in %s ...", WATCH_DIR)
             self.rescan()
             while self.queue.unfinished_tasks and not self.stop_event.is_set():
                 time.sleep(0.2)
@@ -484,10 +619,10 @@ class Compressor:
         observer = Observer()
         observer.schedule(handler, str(WATCH_DIR), recursive=False)
         observer.start()
-        log.info(
-            "Watching %s -> %s (quality %d, formats: %s)",
-            WATCH_DIR, OUTPUT_DIR, WEBP_QUALITY, " ".join(sorted(SUPPORTED_EXTS)),
-        )
+        log.info("Watching %s -> %s", WATCH_DIR, OUTPUT_DIR)
+        log.info("Images -> WebP (quality %d): %s", WEBP_QUALITY, " ".join(sorted(IMAGE_EXTS)))
+        if CONVERT_DOCUMENTS:
+            log.info("Documents -> Markdown: %s", " ".join(sorted(DOCUMENT_EXTS)))
 
         self.rescan()  # catch files that landed while we were starting up
         try:
@@ -523,9 +658,10 @@ class _EventHandler(FileSystemEventHandler):
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Convert images received via AirDrop to compressed WebP.")
+    parser = argparse.ArgumentParser(
+        description="Convert files received via AirDrop: images to WebP, documents to Markdown.")
     parser.add_argument("--scan-existing", action="store_true",
-                        help="convert images already in the folder once, then exit "
+                        help="convert files already in the folder once, then exit "
                              "(skips ones converted before)")
     args = parser.parse_args()
 
