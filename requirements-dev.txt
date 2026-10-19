@@ -1,5 +1,5 @@
 -r requirements.txt
 pyinstaller>=6.0
-pytest>=8.0
+pytest>=9.1.1
 dmgbuild>=1.6
 markdown>=3.5
