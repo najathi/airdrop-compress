@@ -3,5 +3,5 @@ pillow-heif>=0.20
 watchdog>=4.0
 markitdown[pdf,docx,pptx,xlsx,xls,outlook]>=0.1.2
 pywebview>=5.0
-pyobjc-framework-Cocoa>=10.0
+pyobjc-framework-Cocoa>=12.2.2
 certifi
