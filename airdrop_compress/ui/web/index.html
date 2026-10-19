@@ -3,6 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<!-- CSP: 'unsafe-eval' is required by pywebview's JS bridge (it builds API stubs with new Function). -->
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'">
 <title>AirDrop Compress</title>
 <link rel="stylesheet" href="styles.css">
 </head>
@@ -30,6 +32,7 @@
     <a class="nav-item" data-page="about" href="#about">
       <svg viewBox="0 0 24 24"><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20m1 15h-2v-6h2zm0-8h-2V7h2z"/></svg>About<span class="nav-badge accent" id="update-badge" hidden>1</span></a>
     <div class="sidebar-foot">
+      <button class="custom-link" data-goto="about" data-scroll="build-with-us">Need a custom solution?</button>
       <div class="status-mini" id="status-mini"><span class="dot"></span><span class="label">Starting…</span></div>
     </div>
   </nav>
@@ -336,6 +339,33 @@
           <button class="btn subtle" data-url="https://github.com/najathi/airdrop-compress/issues">Report a problem</button>
         </div>
         <div id="update-result" class="update-result"></div>
+      </div>
+      <div class="card maker">
+        <div class="maker-avatar" aria-hidden="true">N</div>
+        <div class="maker-text">
+          <div class="row-title">Built by <span id="author-name">Najathi</span></div>
+          <div class="row-hint">AirDrop Compress is free and open source. Follow along or say hello:</div>
+          <div class="maker-links" id="author-links"></div>
+        </div>
+      </div>
+      <div class="card build" id="build-with-us">
+        <div class="build-head">
+          <div>
+            <h2>Build an app that meets your needs</h2>
+            <p class="row-hint">Need AirDrop Compress tailored to your business, connected to your systems, or something new built from scratch? Let's talk.</p>
+          </div>
+          <button class="btn primary" data-contact="custom">Let's build together</button>
+        </div>
+        <ul class="services">
+          <li><b>Custom app development</b>macOS, web and automation tools</li>
+          <li><b>Features &amp; integrations</b>Connect to your CMS, storage or workflow</li>
+          <li><b>Automation solutions</b>Hands-off file and image pipelines</li>
+          <li><b>Enterprise &amp; bulk deployment</b>Managed rollout across many Macs</li>
+          <li><b>Partnerships</b>Collaborations and white-label work</li>
+          <li><b>Support &amp; consulting</b>Technical help and advice</li>
+        </ul>
+        <div class="build-foot"><span class="row-hint">Business inquiries open an email with a short checklist - no forms, no tracking.</span>
+          <button class="btn subtle" data-contact="business">Contact us</button></div>
       </div>
       <div class="card">
         <h3>Your data</h3>

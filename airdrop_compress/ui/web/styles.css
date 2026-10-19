@@ -317,6 +317,19 @@ input.invalid { border-color: var(--red); outline-color: var(--red-soft); }
 .about-hero .inline { margin-top: 16px; }
 .update-result { margin-top: 14px; color: var(--muted); }
 .update-result .badge { font-size: 12px; padding: 3px 10px; }
+.custom-link { display: block; background: none; border: 0; padding: 0 0 10px; color: var(--muted); font-size: 12px; text-align: left; cursor: pointer; }
+.custom-link:hover { color: var(--accent); }
+.maker { display: flex; gap: 14px; align-items: center; }
+.maker-avatar { width: 44px; height: 44px; border-radius: 50%; flex: none; display: grid; place-items: center; color: #fff; font-weight: 700; font-size: 18px; background: linear-gradient(135deg, #3fa9ff, #4c47e8); }
+.maker-text { flex: 1; min-width: 0; }
+.maker-links { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.build { background: linear-gradient(135deg, var(--accent-soft), transparent 70%), var(--card); }
+.build-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; }
+.build h2 { font-size: 16px; margin-bottom: 4px; }
+.services { list-style: none; padding: 0; margin: 14px 0 6px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.services li { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; font-size: 12px; color: var(--muted); }
+.services b { display: block; color: var(--text); font-size: 12.5px; margin-bottom: 2px; }
+.build-foot { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-top: 8px; }
 .legal { color: var(--faint); font-size: 11.5px; text-align: center; margin-top: 18px; }
 .mono { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 11.5px; word-break: break-all; }
 
@@ -341,6 +354,7 @@ input.invalid { border-color: var(--red); outline-color: var(--red-soft); }
 /* --------------------------------------------------------------- responsive */
 @media (max-width: 860px) {
   .stats { grid-template-columns: repeat(2, 1fr); }
+  .services { grid-template-columns: repeat(2, 1fr); }
   .format-help { grid-template-columns: 1fr; }
 }
 @media (max-width: 760px) {
@@ -359,4 +373,6 @@ input.invalid { border-color: var(--red); outline-color: var(--red-soft); }
   .plugin { grid-template-columns: 1fr; }
   .plugin-icon { display: none; }
   .plugin-actions { flex-direction: row; align-items: center; }
+  .services { grid-template-columns: 1fr; }
+  .build-head, .build-foot { flex-direction: column; align-items: flex-start; }
 }

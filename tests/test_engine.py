@@ -124,3 +124,57 @@ def test_seo_slug():
     assert seo_slug("IMG_1286 Beach Day") == "img-1286-beach-day"
     assert seo_slug("Café Menü – 2026!") == "cafe-menu-2026"
     assert seo_slug("###") == "file"
+
+
+def test_empty_files_are_skipped_quickly(env):
+    engine, watch, out = env
+    start(engine)
+    (watch / "empty.jpg").write_bytes(b"")
+    assert wait_for(lambda: any(i["name"] == "empty.jpg" and i["status"] == "skipped"
+                                for i in engine.activity.snapshot()), timeout=10)
+    engine._rescan()  # the periodic rescan must not report it again
+    time.sleep(1)
+    assert sum(i["name"] == "empty.jpg" for i in engine.activity.snapshot()) == 1
+
+
+def test_symlinks_are_never_followed(env, tmp_path):
+    engine, watch, out = env
+    secret = tmp_path / "secret.txt"
+    secret.write_text("private")
+    start(engine)
+    (watch / "link.txt").symlink_to(secret)
+    time.sleep(3)
+    assert not (out / "link.md").exists()
+
+
+def test_output_folder_cannot_be_the_watch_folder(env):
+    engine, watch, out = env
+    engine.settings.update({"general": {"output_folder": str(watch)}})
+    engine.start()
+    assert wait_for(lambda: engine.state == "error")
+    assert "can't be the AirDrop folder" in engine.message
+
+
+def test_long_names_and_quarantine_are_kept(env, photo_jpeg):
+    engine, watch, out = env
+    start(engine)
+    long_name = "x" * 250 + ".jpg"
+    staged = watch.parent / long_name
+    shutil.copy(photo_jpeg, staged)
+    subprocess.run(["xattr", "-w", "com.apple.quarantine", "0081;6ad5b83d;sharingd;X", str(staged)], check=True)
+    subprocess.run(["ditto", str(staged), str(watch / long_name)], check=True)
+    assert wait_for(lambda: any(p.suffix == ".webp" for p in out.glob("x*")))
+    made = next(out.glob("x*.webp"))
+    assert len(made.name.encode()) <= 255
+    tag = subprocess.run(["xattr", "-p", "com.apple.quarantine", str(made)], capture_output=True, text=True)
+    assert "sharingd" in tag.stdout
+
+
+def test_damaged_image_gets_a_clear_message(env):
+    engine, watch, out = env
+    start(engine)
+    (watch / "broken.jpg").write_bytes(b"not really a jpeg")
+    assert wait_for(lambda: any(i["name"] == "broken.jpg" and i["status"] == "failed"
+                                for i in engine.activity.snapshot()))
+    item = next(i for i in engine.activity.snapshot() if i["name"] == "broken.jpg")
+    assert item["message"] == "Not a valid image, or the file is damaged"

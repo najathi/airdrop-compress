@@ -52,3 +52,34 @@ def test_size_limit(tmp_path):
 
 def test_tidy():
     assert tidy_markdown("a  \r\n\n\n\n\fb") == "a\n\nb\n"
+
+
+def test_zip_bomb_is_skipped(tmp_path):
+    import zipfile
+    bomb = tmp_path / "bomb.zip"
+    with zipfile.ZipFile(bomb, "w", zipfile.ZIP_DEFLATED) as z:
+        z.writestr("zeros.txt", b"0" * (50 * 1024 * 1024))
+    with pytest.raises(SkipFile, match="skipped for safety"):
+        convert(bomb, tmp_path)
+
+
+def test_office_formats_in_sandbox(tmp_path):
+    from openpyxl import Workbook
+    from pptx import Presentation
+    wb = Workbook()
+    wb.active.append(["Device", "Qty"])
+    wb.active.append(["iPhone", 4])
+    wb.save(tmp_path / "stock.xlsx")
+    deck = Presentation()
+    slide = deck.slides.add_slide(deck.slide_layouts[1])
+    slide.shapes.title.text = "Plan"
+    deck.save(tmp_path / "deck.pptx")
+    assert "| iPhone | 4 |" in convert(tmp_path / "stock.xlsx", tmp_path)
+    assert "# Plan" in convert(tmp_path / "deck.pptx", tmp_path)
+
+
+def test_damaged_pdf_has_a_clear_error(tmp_path):
+    src = tmp_path / "fake.pdf"
+    src.write_bytes(b"%PDF-1.4 nonsense")
+    with pytest.raises(RuntimeError, match="couldn't be read"):
+        convert(src, tmp_path)

@@ -8,11 +8,13 @@ airdrop_compress/
 ├── store.py           duplicate protection (SHA-256 of each processed file -> its outputs)
 ├── activity.py        recent activity + daily statistics for the dashboard
 ├── macos.py           notifications, Finder, quarantine tags, launch-at-login LaunchAgent
+├── sandbox.py         allowlist sandbox-exec profiles for plugins and document conversion
 ├── paths.py           where data lives; resources inside the .app
 ├── processors/
 │   ├── base.py        Processor protocol, Job, Output, Result, SkipFile
 │   ├── images.py      WebP / AVIF / JPEG / Auto encoder, target size, srcset, metadata, colour
-│   └── documents.py   Markdown via MarkItDown, macOS textutil, or fenced code
+│   ├── documents.py   Markdown via MarkItDown, macOS textutil, or fenced code; zip-bomb guard
+│   └── document_worker.py  runs MarkItDown inside the sandbox (one process per document)
 ├── plugins/
 │   ├── api.py         the only public plugin API (PluginContext, API_VERSION, PERMISSIONS)
 │   ├── manager.py     discovery, manifest validation, approval, sandbox profile, running, output checks
@@ -29,10 +31,13 @@ airdrop_compress/
 1. **Detect.** FSEvents (watchdog) reports a created, moved or modified file in the watched folder, and a 30-second rescan catches any missed events. A file is new if its name and inode weren't there when watching started.
 2. **Route.** `Engine.route` asks enabled plugins first, then the built-in image and document processors. Files nothing can handle are logged once as skipped.
 3. **Wait and filter.** The engine waits until the file stops growing, then skips web downloads by checking the quarantine tag's agent name. It hashes the file and asks the store whether it was already converted.
-4. **Process.** The processor gets a `Job` with the source file, a private `workdir` inside the output folder, and a snapshot of the settings. It writes its results to the workdir and returns `Output`s (each a path plus a suffix such as `.webp` or `-800w.webp`).
+4. **Process.** Images are decoded in-process by Pillow, with decompression-bomb limits. Documents are converted by `document_worker` in a sandboxed child process with a 5-minute timeout, after a zip-bomb check. Plugins run in the same sandbox. The processor gets a `Job` with the source file, a private `workdir` inside the output folder, and a snapshot of the settings. It writes its results to the workdir and returns `Output`s (each a path plus a suffix such as `.webp` or `-800w.webp`).
 5. **Place.** The engine picks one free stem for all of a file's outputs, so `IMG_1.HEIC` and `IMG_1.JPG` become `IMG_1.*` and `IMG_1-1.*`. It then moves the outputs into place with `os.replace` (same disk, so the move is atomic) and records them in the store and the activity log.
 
 ## Concurrency and safety
+
+See also [SECURITY.md](../SECURITY.md) and the [security audit](SECURITY_AUDIT.md).
+
 
 - A lock file (`engine.lock`, `flock`) allows only one engine to run, whether it's the app or the command line.
 - Settings, the store and the activity log are written atomically (temporary file plus `os.replace`). The store and settings also take a file lock, because the app and a `scan` run may write at the same time.

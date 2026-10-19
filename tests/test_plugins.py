@@ -132,8 +132,9 @@ def test_network_permission_is_honoured_in_profile(pm, tmp_path):
     from airdrop_compress.plugins.manager import sandbox_profile
     make_plugin(pm.dir, "def process(ctx): pass", permissions=["network"])
     pm.discover()
-    profile = sandbox_profile(pm.plugins["demo"], tmp_path / "x", tmp_path, [])
+    profile = sandbox_profile(pm.plugins["demo"], tmp_path / "x", tmp_path)
     assert "(deny network*)" not in profile and "(deny process-exec*)" in profile
+    assert "com.apple.dnssd.service" in profile and "(deny mach-lookup)" in profile
 
 
 @needs_sandbox
@@ -180,3 +181,51 @@ def test_install_zip_and_reject_unsafe(pm, tmp_path):
         pm.install(evil)
     pm.remove("svg-minify")
     assert not (pm.dir / "svg-minify").exists()
+
+
+@pytest.mark.parametrize("change,error", [
+    ({"outputs": [".command"]}, "may not create"),
+    ({"settings": [{"key": "n", "type": "int", "min": '"><img src=x onerror=alert(1)>'}]}, "whole number"),
+    ({"settings": [{"key": "bad key!", "type": "bool"}]}, "letters, digits"),
+    ({"settings": [{"key": "c", "type": "choice", "options": [1, 2]}]}, "options"),
+    ({"settings": [{"key": "b", "type": "bool", "default": "yes"}]}, "default"),
+])
+def test_manifest_hardening(tmp_path, change, error):
+    info = load_manifest(make_plugin(tmp_path, "def process(ctx): pass", **change))
+    assert any(error in e for e in info.errors), info.errors
+
+
+def test_folder_install_rejects_links(pm, tmp_path):
+    folder = make_plugin(tmp_path / "src", "def process(ctx): pass")
+    (folder / "key").symlink_to(Path.home() / ".ssh")
+    with pytest.raises(ValueError, match="can't contain links"):
+        pm.install(folder)
+
+
+@needs_sandbox
+def test_sandbox_blocks_clipboard_and_folder_listing(pm, tmp_path):
+    code = f'''
+import os
+REAL_HOME = {str(Path.home())!r}
+def process(ctx):
+    r = {{}}
+    try:
+        import AppKit
+        r["clipboard"] = AppKit.NSPasteboard.generalPasteboard().stringForType_(AppKit.NSPasteboardTypeString)
+    except Exception:
+        r["clipboard"] = None
+    for name, path in (("home", REAL_HOME), ("inbox", str(ctx.input.parent)),
+                       ("tmp", "/private/tmp"), ("shared", "/Users/Shared")):
+        try:
+            os.listdir(path); r[name] = "allowed"
+        except Exception:
+            r[name] = "blocked"
+    ctx.output(".txt").write_text(repr(r))
+'''
+    make_plugin(pm.dir, code)
+    pm.discover()
+    pm.enable("demo")
+    src = tmp_path / "in.txt"
+    src.write_text("x")
+    r = eval(run_plugin(pm, "demo", src, tmp_path).outputs[0].path.read_text())
+    assert r == {"clipboard": None, "home": "blocked", "inbox": "blocked", "tmp": "blocked", "shared": "blocked"}

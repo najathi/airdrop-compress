@@ -1,0 +1,407 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data:; style-src 'self'; script-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; upgrade-insecure-requests">
+<meta name="referrer" content="strict-origin-when-cross-origin">
+<title>AirDrop Compress: auto-convert AirDrop photos to WebP, AVIF & Markdown on Mac</title>
+<meta name="description" content="Free, open-source macOS menu bar app that automatically turns photos and documents you AirDrop to your Mac into compressed WebP, AVIF or JPEG images and clean Markdown. Your originals are never touched.">
+<link rel="canonical" href="{{SITE_URL}}">
+<meta name="theme-color" content="#f5f5f7" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#1c1c1e" media="(prefers-color-scheme: dark)">
+<link rel="icon" href="assets/img/icon.svg" type="image/svg+xml">
+<link rel="icon" href="assets/img/favicon-32.png" sizes="32x32" type="image/png">
+<link rel="apple-touch-icon" href="assets/img/apple-touch-icon.png">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="AirDrop Compress">
+<meta property="og:title" content="AirDrop Compress: files you AirDrop, made web-ready automatically">
+<meta property="og:description" content="Photos become compressed WebP, AVIF or JPEG. Documents become clean Markdown. Free and open source for macOS.">
+<meta property="og:url" content="{{SITE_URL}}">
+<meta property="og:image" content="{{SITE_URL}}assets/img/og-image.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="AirDrop Compress app icon and dashboard">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="stylesheet" href="assets/site.css">
+<script defer src="assets/site.js"></script>
+{{JSONLD}}
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+
+<header class="topbar">
+  <div class="wrap topbar-inner">
+    <a class="brand" href="#top" aria-label="AirDrop Compress home">
+      <img src="assets/img/icon.svg" width="32" height="32" alt="">
+      <span>AirDrop Compress</span>
+    </a>
+    <nav class="nav" aria-label="Main">
+      <a href="#features">Features</a>
+      <a href="#how-it-works">How it works</a>
+      <a href="#formats">Formats</a>
+      <a href="docs/">Docs</a>
+      <a href="#faq">FAQ</a>
+      <a href="#business">For business</a>
+    </nav>
+    <a class="btn small primary nav-cta" href="#download">Download</a>
+    <details class="menu">
+      <summary aria-label="Menu"><span></span><span></span><span></span></summary>
+      <div class="menu-panel">
+        <a href="#features">Features</a><a href="#how-it-works">How it works</a><a href="#formats">Formats</a>
+        <a href="#download">Download</a><a href="docs/">Documentation</a><a href="#faq">FAQ</a><a href="#business">For business</a>
+      </div>
+    </details>
+  </div>
+</header>
+
+<main id="main">
+  <!-- ================================================================= hero -->
+  <section class="hero" id="top">
+    <div class="wrap hero-grid">
+      <div class="hero-copy">
+        <p class="eyebrow">Free &amp; open source · macOS menu bar app</p>
+        <h1>Every AirDrop, <span class="grad">web&#8209;ready.</span></h1>
+        <p class="lead">AirDrop Compress turns the photos and documents you AirDrop to your Mac into compressed <b>WebP, AVIF or JPEG</b> images and clean <b>Markdown</b>, automatically. Your originals are never touched.</p>
+        <div class="cta-row">
+          <a class="btn primary large" href="{{DMG_URL}}" data-download>
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M16.4 12.6c0-2.3 1.9-3.4 2-3.5-1.1-1.6-2.8-1.8-3.4-1.8-1.4-.2-2.8.9-3.5.9s-1.8-.8-3-.8C7 7.4 5.6 8.3 4.8 9.7c-1.6 2.8-.4 6.9 1.2 9.1.8 1.1 1.7 2.3 2.8 2.3 1.1 0 1.6-.7 3-.7s1.8.7 3 .7c1.2 0 2-1.1 2.8-2.2.9-1.3 1.2-2.5 1.2-2.6 0 0-2.4-.9-2.4-3.7M14.1 5.8c.6-.8 1-1.8.9-2.8-.9 0-2 .6-2.6 1.4-.6.7-1.1 1.7-.9 2.7 1 .1 2-.5 2.6-1.3"/></svg>
+            Download for Mac</a>
+          <a class="btn large" href="https://github.com/najathi/airdrop-compress">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2a10 10 0 0 0-3.2 19.5c.5.1.7-.2.7-.5v-1.7c-2.8.6-3.4-1.3-3.4-1.3-.4-1.2-1.1-1.5-1.1-1.5-.9-.6.1-.6.1-.6 1 .1 1.5 1 1.5 1 .9 1.6 2.4 1.1 2.9.8.1-.6.4-1.1.6-1.3-2.2-.3-4.6-1.1-4.6-5 0-1.1.4-2 1-2.7-.1-.3-.4-1.3.1-2.7 0 0 .8-.3 2.8 1a9.6 9.6 0 0 1 5 0c1.9-1.3 2.8-1 2.8-1 .5 1.4.2 2.4.1 2.7.6.7 1 1.6 1 2.7 0 3.9-2.4 4.7-4.6 5 .4.3.7.9.7 1.9V21c0 .3.2.6.7.5A10 10 0 0 0 12 2"/></svg>
+            View on GitHub</a>
+        </div>
+        <p class="fine">Version {{VERSION}} · macOS 12 or later · Apple silicon · <a href="#download">Install help</a></p>
+      </div>
+      <div class="hero-shot">
+        <picture>
+          <source srcset="assets/img/app-dashboard-dark.webp" media="(prefers-color-scheme: dark)">
+          <img src="assets/img/app-dashboard-light.webp" width="1100" height="760" fetchpriority="high"
+               alt="The AirDrop Compress dashboard: 7 files processed today, 21.2 MB saved, and a list of converted photos and documents">
+        </picture>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================================================================ about -->
+  <section class="section" id="about">
+    <div class="wrap">
+      <div class="section-head">
+        <p class="eyebrow">About the software</p>
+        <h2>AirDrop it. Done.</h2>
+        <p class="lead">Photos from an iPhone arrive as large HEIC files that most websites, CMSs and email tools don't accept. Documents arrive in formats you can't easily search or reuse. AirDrop Compress fixes both the moment they land: no exporting, no online converters, no uploads.</p>
+      </div>
+      <div class="cols3">
+        <div class="value"><div class="value-icon">⚡️</div><h3>Automatic</h3><p>It watches your AirDrop folder from the menu bar and converts new files within seconds. Batches of files are handled together.</p></div>
+        <div class="value"><div class="value-icon">🪶</div><h3>Much smaller</h3><p>iPhone photos typically shrink by 60–75% as WebP or AVIF with no visible difference, ready for the web, email or chat.</p></div>
+        <div class="value"><div class="value-icon">🔒</div><h3>Private &amp; safe</h3><p>Everything happens on your Mac. Originals are never changed, and untrusted documents are converted in a sandbox.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================================= features -->
+  <section class="section alt" id="features">
+    <div class="wrap">
+      <div class="section-head">
+        <p class="eyebrow">Features</p>
+        <h2>Everything you need, nothing you don't</h2>
+      </div>
+      <div class="grid">
+        <article class="feature"><h3>WebP, AVIF, JPEG or Auto</h3><p>Pick a format, or let <b>Auto</b> encode all three and keep the smallest for each image. No single format wins every time.</p></article>
+        <article class="feature"><h3>Quality &amp; target size</h3><p>Set the quality per format and the compression effort, or ask for a target such as “under 200 KB” and let it find the best quality that fits.</p></article>
+        <article class="feature"><h3>Sized for the web</h3><p>Limit the longest edge, and create responsive <code>-800w</code> copies for <code>srcset</code>, so phones download less.</p></article>
+        <article class="feature"><h3>Metadata &amp; colour</h3><p>Keep photo details, remove only the location, or strip everything. Keep the iPhone's Display P3 colours or convert to sRGB.</p></article>
+        <article class="feature"><h3>SEO-friendly names</h3><p><code>IMG_1286 Beach.HEIC</code> becomes <code>img-1286-beach.webp</code>, with an optional JPEG fallback for <code>&lt;picture&gt;</code>.</p></article>
+        <article class="feature"><h3>Documents to Markdown</h3><p>PDF, Word, PowerPoint, Excel, RTF, EPUB, HTML, CSV and more become clean, searchable Markdown.</p></article>
+        <article class="feature"><h3>Dashboard &amp; menu bar</h3><p>Live status, savings, and every file's result with a plain-language reason when something is skipped or fails.</p></article>
+        <article class="feature"><h3>Compare formats</h3><p>See how big one of your own photos would be as WebP, AVIF and JPEG before you choose.</p></article>
+        <article class="feature"><h3>Sandboxed plugins</h3><p>Add new file types with Python plugins that run in a macOS sandbox and only do what you approve.</p></article>
+      </div>
+    </div>
+  </section>
+
+  <!-- ========================================================= how it works -->
+  <section class="section" id="how-it-works">
+    <div class="wrap">
+      <div class="section-head">
+        <p class="eyebrow">How it works</p>
+        <h2>From AirDrop to web-ready in seconds</h2>
+      </div>
+      <ol class="flow">
+        <li><span class="flow-num">1</span><h3>You AirDrop a file</h3><p>macOS saves it to <code>Downloads</code> (or <code>~/Desktop/AirDrop</code> if you sort AirDrops there).</p></li>
+        <li><span class="flow-num">2</span><h3>The app notices it</h3><p>It waits until the file is complete, checks it really came by AirDrop, and skips duplicates it has seen before.</p></li>
+        <li><span class="flow-num">3</span><h3>It converts the file</h3><p>Images become WebP/AVIF/JPEG; documents are converted to Markdown in a sandbox; plugins handle the rest.</p></li>
+        <li><span class="flow-num">4</span><h3>Results are saved</h3><p>New files appear in an <code>airdrop-compress</code> folder, with unique names. One notification sums up the batch.</p></li>
+      </ol>
+    </div>
+  </section>
+
+  <!-- ============================================================= who / marketing -->
+  <section class="section alt" id="who">
+    <div class="wrap">
+      <div class="section-head">
+        <p class="eyebrow">Made for</p>
+        <h2>Individuals, businesses and developers</h2>
+      </div>
+      <div class="cols3">
+        <div class="audience">
+          <h3>Individuals</h3>
+          <p>Share holiday photos, receipts and notes without hitting email limits or “unsupported format” errors.</p>
+          <ul><li>Photos ready for any website or chat</li><li>Receipts and PDFs as searchable text</li><li>Location removed on request</li></ul>
+        </div>
+        <div class="audience">
+          <h3>Businesses</h3>
+          <p>Product shots, team photos and documents from the phone go straight into your website, CMS or knowledge base.</p>
+          <ul><li>Faster pages with smaller images</li><li>Consistent sizes and SEO-friendly names</li><li>No cloud converters for sensitive files</li></ul>
+        </div>
+        <div class="audience">
+          <h3>Developers &amp; creators</h3>
+          <p>Drop screenshots and assets from your phone and get <code>srcset</code>-ready WebP/AVIF with a JPEG fallback.</p>
+          <ul><li>Responsive widths in one step</li><li>Lossless WebP for UI screenshots</li><li>Extend it with Python plugins</li></ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- =========================================================== how to use -->
+  <section class="section" id="how-to-use">
+    <div class="wrap split">
+      <div>
+        <p class="eyebrow">How to use</p>
+        <h2>Set it up once</h2>
+        <ol class="steps">
+          <li><b>Install.</b> Download the app, drag it to Applications and open it. <a href="#download">First-launch help</a>.</li>
+          <li><b>Allow folder access</b> when macOS asks, so the app can see your AirDrop folder.</li>
+          <li><b>Choose your format</b> under <i>Images</i>: WebP is a great default. Set quality, maximum size or a target size if you like.</li>
+          <li><b>AirDrop something.</b> Watch it appear on the Dashboard and in the <code>airdrop-compress</code> folder.</li>
+          <li><b>Forget about it.</b> The app starts at login and works quietly in the menu bar. Pause it any time.</li>
+        </ol>
+        <p><a class="link-arrow" href="docs/user_guide.html">Read the full user guide</a></p>
+      </div>
+      <div class="shot">
+        <picture>
+          <source srcset="assets/img/app-images-dark.webp" media="(prefers-color-scheme: dark)">
+          <img src="assets/img/app-images-light.webp" width="1100" height="760" loading="lazy"
+               alt="Image settings: choose Auto, WebP, AVIF or JPEG, with quality and compression options">
+        </picture>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================================== formats -->
+  <section class="section alt" id="formats">
+    <div class="wrap">
+      <div class="section-head">
+        <p class="eyebrow">Supported formats</p>
+        <h2>What goes in, what comes out</h2>
+      </div>
+      <div class="formats">
+        <div class="format-card">
+          <h3>Images</h3>
+          <p class="tags"><span>HEIC</span><span>HEIF</span><span>JPEG</span><span>PNG</span><span>TIFF</span><span>GIF</span><span>BMP</span><span>WebP</span><span>AVIF</span></p>
+          <p class="arrow">→ WebP, AVIF or JPEG</p>
+          <p class="how">Rotation applied, transparency and animation kept, optional resizing, metadata and colour control. Encoded with libwebp, libavif and libjpeg-turbo.</p>
+        </div>
+        <div class="format-card">
+          <h3>Documents</h3>
+          <p class="tags"><span>PDF</span><span>DOCX</span><span>PPTX</span><span>XLSX</span><span>XLS</span><span>CSV</span><span>HTML</span><span>EPUB</span><span>JSON</span><span>MSG</span><span>ZIP</span><span>TXT</span></p>
+          <p class="arrow">→ Markdown</p>
+          <p class="how">Headings, lists and tables preserved by Microsoft MarkItDown, running in a sandbox with size and time limits.</p>
+        </div>
+        <div class="format-card">
+          <h3>Older formats</h3>
+          <p class="tags"><span>DOC</span><span>RTF</span><span>ODT</span><span>Web archive</span></p>
+          <p class="arrow">→ Markdown</p>
+          <p class="how">Read with macOS's own <code>textutil</code>, then converted to Markdown.</p>
+        </div>
+        <div class="format-card">
+          <h3>Code, contacts &amp; more</h3>
+          <p class="tags"><span>PY</span><span>JS</span><span>SWIFT</span><span>SQL</span><span>YAML</span><span>LOG</span><span>VCF</span><span>ICS</span></p>
+          <p class="arrow">→ Markdown code block</p>
+          <p class="how">Kept exactly as written, in a fenced code block under the file name.</p>
+        </div>
+      </div>
+      <p class="note">Not supported yet: Pages, Numbers and Keynote files, videos, audio, ProRAW and scanned PDFs without text. These show as “Skipped” with the reason. <a href="docs/formats.html">Full format reference</a>.</p>
+    </div>
+  </section>
+
+  <!-- ========================================================= requirements -->
+  <section class="section" id="requirements">
+    <div class="wrap">
+      <div class="section-head">
+        <p class="eyebrow">System requirements</p>
+        <h2>Small footprint, no setup</h2>
+      </div>
+      <div class="req">
+        <div><b>macOS</b><span>12 Monterey or later</span></div>
+        <div><b>Mac</b><span>Apple silicon (M1 or later). Intel: build from source</span></div>
+        <div><b>Disk space</b><span>About 200 MB</span></div>
+        <div><b>Internet</b><span>Not needed (optional update check)</span></div>
+        <div><b>Dependencies</b><span>None. Everything is bundled</span></div>
+        <div><b>From source</b><span>Python 3.10+</span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================================= download -->
+  <section class="section alt" id="download">
+    <div class="wrap">
+      <div class="download-card">
+        <img src="assets/img/icon.svg" width="88" height="88" alt="">
+        <h2>Download AirDrop Compress</h2>
+        <p class="lead">Version {{VERSION}} · free and open source (MIT)</p>
+        <div class="cta-row center">
+          <a class="btn primary large" href="{{DMG_URL}}" data-download>Download for Mac (Apple silicon)</a>
+          <a class="btn large" href="{{RELEASES_URL}}">All releases &amp; notes</a>
+        </div>
+        <div class="install-steps">
+          <div><span class="flow-num">1</span><p>Open the <code>.dmg</code> and drag the app to <b>Applications</b>.</p></div>
+          <div><span class="flow-num">2</span><p>Open it. The app isn't notarised yet, so click <b>Done</b>, then <b>System Settings → Privacy &amp; Security → Open Anyway</b> (one time only).</p></div>
+          <div><span class="flow-num">3</span><p>Click <b>Allow</b> when asked about your Desktop or Downloads folder.</p></div>
+        </div>
+        <details class="alt-install">
+          <summary>Prefer Terminal, or using an Intel Mac?</summary>
+          <p>Skip the Gatekeeper prompt after installing:</p>
+          <div class="code"><code>xattr -dr com.apple.quarantine "/Applications/AirDrop Compress.app"</code><button type="button" data-copy>Copy</button></div>
+          <p>Build from source (any Mac with Python 3.10+):</p>
+          <div class="code"><code>git clone https://github.com/najathi/airdrop-compress.git &amp;&amp; cd airdrop-compress &amp;&amp; packaging/build.sh</code><button type="button" data-copy>Copy</button></div>
+        </details>
+        <p class="fine"><a href="docs/install.html">Full installation guide</a> · <a href="docs/install.html#updating">Updating</a> · <a href="docs/install.html#uninstalling">Uninstalling</a></p>
+      </div>
+    </div>
+  </section>
+
+  <!-- =============================================================== build -->
+  <section class="section" id="build">
+    <div class="wrap">
+      <div class="build-card">
+        <div>
+          <p class="eyebrow">Custom solutions</p>
+          <h2>Build an app that meets your needs</h2>
+          <p class="lead">Like how AirDrop Compress works, but need it to fit your business? Connect it to your CMS or storage, automate a whole image pipeline, or build something entirely new. I'll help you turn the idea into a polished, reliable app.</p>
+        </div>
+        <div class="build-actions">
+          <a class="btn primary large" href="mailto:najathi777@gmail.com?subject=Custom%20solution%20request%20-%20AirDrop%20Compress&amp;body=Hi%20Najathi%2C%0A%0AI'd%20like%20to%20build%3A%0A%0AWho%20it's%20for%3A%0AMust-have%20features%3A%0ATimeline%3A%0ABudget%20(optional)%3A%0A">Let's build together</a>
+          <a class="btn large" href="#business">Discuss your requirements</a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================================ business -->
+  <section class="section alt" id="business">
+    <div class="wrap">
+      <div class="section-head">
+        <p class="eyebrow">Business inquiries</p>
+        <h2>Work with us</h2>
+        <p class="lead">For companies and teams that need more than the free app.</p>
+      </div>
+      <div class="grid services">
+        <article class="feature"><h3>Custom app development</h3><p>macOS apps, web apps and internal tools built around your workflow.</p></article>
+        <article class="feature"><h3>Features &amp; integrations</h3><p>Business-specific features, and connections to your CMS, cloud storage, DAM or APIs.</p></article>
+        <article class="feature"><h3>Automation solutions</h3><p>Hands-off pipelines for images, documents and files, end to end.</p></article>
+        <article class="feature"><h3>Enterprise &amp; bulk deployment</h3><p>Managed rollout across many Macs, custom defaults and signed builds.</p></article>
+        <article class="feature"><h3>Partnerships</h3><p>Collaborations, white-label versions and co-development.</p></article>
+        <article class="feature"><h3>Support &amp; consulting</h3><p>Technical support, architecture advice and code reviews.</p></article>
+      </div>
+      <div class="contact-card">
+        <div>
+          <h3>Contact us</h3>
+          <p>Tell us what you need, and Najathi will get back to you.</p>
+          <p class="email"><a href="mailto:najathi777@gmail.com">najathi777@gmail.com</a> <button type="button" class="copy-inline" data-copy-text="najathi777@gmail.com">Copy</button></p>
+        </div>
+        <a class="btn primary large" href="mailto:najathi777@gmail.com?subject=Business%20inquiry%20-%20AirDrop%20Compress&amp;body=Hi%20Najathi%2C%0A%0AI'm%20interested%20in%20(delete%20what%20doesn't%20apply)%3A%0A-%20Custom%20app%20development%0A-%20Business-specific%20features%20or%20integrations%0A-%20Custom%20automation%0A-%20Enterprise%20requirements%20%2F%20bulk%20deployment%0A-%20Partnership%20or%20collaboration%0A-%20Technical%20support%20or%20consulting%0A%0ACompany%20%2F%20name%3A%0AWhat%20I%20need%3A%0ATimeline%3A%0ABudget%20(optional)%3A%0A">Contact us</a>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================================================================= faq -->
+  <section class="section" id="faq">
+    <div class="wrap narrow">
+      <div class="section-head">
+        <p class="eyebrow">FAQ</p>
+        <h2>Frequently asked questions</h2>
+      </div>
+      <div class="faq">
+        <details><summary>Is AirDrop Compress free?</summary><p>Yes. It's free and open source under the MIT licence.</p></details>
+        <details><summary>Does it change or delete my original files?</summary><p>No. Originals are only ever read. Results are saved as new files in the output folder, and existing files are never overwritten.</p></details>
+        <details><summary>Does it upload my files anywhere?</summary><p>No. Everything is processed on your Mac. The only network request is an optional daily update check to GitHub.</p></details>
+        <details><summary>Why does macOS say it can't verify the app?</summary><p>The app isn't notarised by Apple yet. Confirm once in System Settings → Privacy &amp; Security → Open Anyway. The download includes an illustrated guide.</p></details>
+        <details><summary>Which format should I choose: WebP, AVIF or JPEG?</summary><p>WebP for general web use, AVIF for the smallest photos where it's supported, JPEG when compatibility matters most. Auto picks the smallest for each image, and the Compare formats tool shows the difference for your own photos.</p></details>
+        <details><summary>Will compression reduce the quality?</summary><p>WebP, AVIF and JPEG are lossy, but at the default settings the difference is very hard to see in photos, while files are typically 60–75% smaller than iPhone originals. You can raise the quality or use lossless WebP for graphics.</p></details>
+        <details><summary>Where do the converted files go?</summary><p>To an <code>airdrop-compress</code> folder inside your AirDrop folder. You can choose any other folder in General → Output folder.</p></details>
+        <details><summary>Can it convert files that didn't come by AirDrop?</summary><p>Yes. Drop any file on the Dashboard, or use Convert Files… in the menu bar. You can also turn off “Only AirDrop files”.</p></details>
+        <details><summary>Does it keep running after I restart my Mac?</summary><p>Yes, if “Open at login” is on (the default). It starts quietly in the menu bar.</p></details>
+        <details><summary>Can it convert Pages files or scanned PDFs?</summary><p>Not yet. Export Pages, Numbers and Keynote files to PDF or Office first. Scanned PDFs need OCR, which a plugin could add.</p></details>
+        <details><summary>Are plugins safe?</summary><p>Plugins stay off until you approve them, and run in a macOS sandbox. They can only read the file they convert and write their own results, with no internet access, other programs, clipboard or other files unless you allow it.</p></details>
+      </div>
+      <p class="center"><a class="link-arrow" href="docs/faq.html">More questions and answers</a></p>
+    </div>
+  </section>
+
+  <!-- ============================================================= support -->
+  <section class="section alt" id="support">
+    <div class="wrap">
+      <div class="section-head">
+        <p class="eyebrow">Support &amp; troubleshooting</p>
+        <h2>Help when you need it</h2>
+      </div>
+      <div class="grid support">
+        <a class="support-card" href="docs/troubleshooting.html"><h3>Troubleshooting</h3><p>Fixes for skipped files, permissions, first launch and more.</p></a>
+        <a class="support-card" href="docs/"><h3>Documentation</h3><p>Install, user guide, formats, plugins and developer docs.</p></a>
+        <a class="support-card" href="https://github.com/najathi/airdrop-compress/issues/new?template=bug_report.yml"><h3>Report a bug</h3><p>Open an issue on GitHub with your macOS and app version.</p></a>
+        <a class="support-card" href="https://github.com/najathi/airdrop-compress/issues/new?template=feature_request.yml"><h3>Request a feature</h3><p>Suggest formats, options or plugin ideas.</p></a>
+        <a class="support-card" href="docs/security.html"><h3>Security</h3><p>How files are kept safe, and how to report a vulnerability privately.</p></a>
+        <a class="support-card" href="mailto:najathi777@gmail.com?subject=Help%20with%20AirDrop%20Compress"><h3>Ask directly</h3><p>Email for help that doesn't fit an issue.</p></a>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================================== github -->
+  <section class="section" id="open-source">
+    <div class="wrap">
+      <div class="oss">
+        <div>
+          <p class="eyebrow">Open source</p>
+          <h2>Built in the open on GitHub</h2>
+          <p class="lead">Read the code, suggest changes, or build a plugin. Contributions of all sizes are welcome.</p>
+        </div>
+        <ul class="oss-links">
+          <li><a href="https://github.com/najathi/airdrop-compress">Source code</a></li>
+          <li><a href="https://github.com/najathi/airdrop-compress/issues">Issue tracker</a></li>
+          <li><a href="docs/contributing.html">Contribution guidelines</a></li>
+          <li><a href="docs/plugins.html">Plugin guide</a></li>
+          <li><a href="docs/changelog.html">Changelog</a></li>
+          <li><a href="https://github.com/najathi/airdrop-compress/blob/main/LICENSE">MIT licence</a></li>
+        </ul>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer class="footer">
+  <div class="wrap footer-grid">
+    <div>
+      <a class="brand" href="#top"><img src="assets/img/icon.svg" width="28" height="28" alt=""><span>AirDrop Compress</span></a>
+      <p>Built by <b>Najathi</b>. Free and open source under the MIT licence.</p>
+      <p class="social">
+        <a href="https://github.com/najathi" rel="me">GitHub</a>
+        <a href="https://www.linkedin.com/in/najathi/" rel="me">LinkedIn</a>
+        <a href="https://stackoverflow.com/users/9181204/najathi" rel="me">Stack Overflow</a>
+        <a href="mailto:najathi777@gmail.com">Email</a>
+      </p>
+    </div>
+    <nav aria-label="Footer">
+      <h4>Product</h4><a href="#features">Features</a><a href="#formats">Formats</a><a href="#download">Download</a><a href="docs/changelog.html">Changelog</a>
+    </nav>
+    <nav aria-label="Documentation">
+      <h4>Docs</h4><a href="docs/install.html">Install</a><a href="docs/user_guide.html">User guide</a><a href="docs/troubleshooting.html">Troubleshooting</a><a href="docs/plugins.html">Plugins</a>
+    </nav>
+    <nav aria-label="Company">
+      <h4>Business</h4><a href="#build">Custom solutions</a><a href="#business">Contact us</a><a href="docs/security.html">Security</a>
+    </nav>
+  </div>
+  <p class="wrap legal">AirDrop is a trademark of Apple Inc. AirDrop Compress is an independent project and is not affiliated with Apple.</p>
+</footer>
+</body>
+</html>

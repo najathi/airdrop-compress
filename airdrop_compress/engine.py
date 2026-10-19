@@ -46,25 +46,57 @@ def is_relevant(path: Path, watch_dir: Path) -> bool:
             and path.parent == watch_dir)
 
 
-def wait_until_complete(path: Path, stop: threading.Event, timeout: float = 300) -> bool:
-    """Wait until the file stops growing (AirDrop may still be writing it)."""
+def wait_until_complete(path: Path, stop: threading.Event, timeout: float = 300) -> str:
+    """Wait until the file stops growing (AirDrop may still be writing it).
+    Returns "ok", "gone", "empty" or "timeout"."""
     deadline = time.monotonic() + timeout
     last, stable = None, 0
     while time.monotonic() < deadline and not stop.is_set():
         try:
             st = path.stat()
         except FileNotFoundError:
-            return False
+            return "gone"
         sig = (st.st_size, st.st_mtime_ns)
-        if sig == last and st.st_size > 0:
+        if sig == last:
             stable += 1
-            if stable >= 2:
-                return True
+            if st.st_size > 0 and stable >= 2:
+                return "ok"
+            if st.st_size == 0 and stable >= 6:  # still empty after ~3 s: not being written
+                return "empty"
         else:
             stable = 0
         last = sig
         time.sleep(0.5)
-    return False
+    return "timeout"
+
+
+def friendly_error(e: Exception) -> str:
+    """Turn library exceptions into messages people can act on."""
+    from PIL import Image, UnidentifiedImageError
+    if isinstance(e, UnidentifiedImageError):
+        return "Not a valid image, or the file is damaged"
+    if isinstance(e, Image.DecompressionBombError):
+        return "The image is too large to process safely"
+    if isinstance(e, MemoryError):
+        return "Not enough memory to process this file"
+    if isinstance(e, OSError) and "truncated" in str(e).lower():
+        return "The image is incomplete or damaged"
+    if isinstance(e, PermissionError):
+        return "macOS didn't allow reading or saving this file"
+    message = str(e).strip() or type(e).__name__
+    return message[:1].upper() + message[1:]
+
+
+MAX_NAME_BYTES = 255  # macOS file name limit
+
+
+def fit_name(stem: str, suffix: str) -> str:
+    """Shorten a stem so stem+suffix fits the file name limit (keeps whole characters)."""
+    budget = MAX_NAME_BYTES - len(suffix.encode())
+    encoded = stem.encode()
+    if len(encoded) <= budget:
+        return stem
+    return encoded[:budget].decode(errors="ignore").rstrip() or "file"
 
 
 def seo_slug(stem: str, fallback: str = "file") -> str:
@@ -296,6 +328,13 @@ class Engine:
             self.old_files = {} if scan_existing else self._snapshot(started)
             self.seen.clear()
             self.unsupported_logged.clear()
+            if self.output_dir.resolve() == self.watch_dir.resolve():
+                # Outputs would land in the watched folder and be converted again, forever.
+                self.state = "error"
+                self.message = ("The output folder can't be the AirDrop folder itself. "
+                                "Choose a folder name in Settings › General.")
+                log.error(self.message)
+                return 1
             self._migrate_output_folder()
             self.output_dir.mkdir(parents=True, exist_ok=True)
 
@@ -429,8 +468,14 @@ class Engine:
         if not is_relevant(path, self.watch_dir):
             return
         try:
+            if path.is_symlink():
+                # Never follow links: one could point at a private file elsewhere on the Mac.
+                if path.name not in self.unsupported_logged:
+                    self.unsupported_logged.add(path.name)
+                    log.info("Skipped %s (symbolic link)", path.name)
+                return
             st = path.stat()
-        except FileNotFoundError:
+        except (FileNotFoundError, OSError):
             return
         if self.old_files.get(path.name) == st.st_ino:
             return  # was here before we started (e.g. an old photo being edited)
@@ -453,8 +498,12 @@ class Engine:
             log.warning("Rescan failed: %s", e)
             return
         for entry in entries:
-            if entry.is_file():
+            if entry.is_file(follow_symlinks=False):
                 self.notice(Path(entry.path))
+        # Forget files that are gone, so long-running sessions don't grow without bound.
+        present = {Path(e.path) for e in entries}
+        for gone in [p for p in self.seen if p not in present]:
+            self.seen.pop(gone, None)
 
     # ===================================================================== #
     # Processing
@@ -480,9 +529,18 @@ class Engine:
         if processor is None:
             return None
         item = self.activity.start(src.name, processor.kind)
-        if not wait_until_complete(src, self.stop_event):
-            self.activity.update(item, status="skipped", message="Disappeared or never finished copying")
-            log.info("Skipped %s (disappeared or never finished copying)", src.name)
+        ready = wait_until_complete(src, self.stop_event)
+        if ready != "ok":
+            reason = {"gone": "Removed before it could be converted", "empty": "The file is empty",
+                      "timeout": "Never finished copying"}[ready]
+            try:  # remember it, so the periodic rescan doesn't report it again unless it changes
+                st = src.stat()
+                if not force:
+                    self.seen[src] = (st.st_size, st.st_mtime_ns)
+            except FileNotFoundError:
+                pass
+            self.activity.update(item, status="skipped", message=reason)
+            log.info("Skipped %s (%s)", src.name, reason.lower())
             return item
         st = src.stat()
         if not force:
@@ -523,6 +581,8 @@ class Engine:
                         shutil.rmtree(leftover) if leftover.is_dir() else leftover.unlink()
             stem = seo_slug(src.stem) if processor.kind == "image" and settings.images.seo_filenames else src.stem
             placed = self._place(stem, result.outputs)
+            # Keep macOS's "downloaded from elsewhere" tag on everything made from this file.
+            macos.copy_quarantine(src, placed)
             # Savings compare the original with the main output; extra sizes/fallbacks are bonuses.
             after = placed[0].stat().st_size
             self.activity.update(item, status="done", after=after, outputs=[p.name for p in placed],
@@ -534,7 +594,7 @@ class Engine:
             self.activity.update(item, status="skipped", message=str(e)[:1].upper() + str(e)[1:])
             log.info("Skipped %s (%s)", src.name, e)
         except Exception as e:
-            message = str(e).strip() or type(e).__name__
+            message = friendly_error(e)
             self.activity.update(item, status="failed", message=message)
             log.error("Failed to convert %s: %s", src.name, message)
             self.notifier.add(failed=True)
@@ -553,6 +613,8 @@ class Engine:
                 suffix = f"-{len(seen)}{suffix}"
             seen.add(suffix)
             suffixes.append(suffix)
+        longest = max(suffixes, key=lambda x: len(x.encode()))
+        stem = fit_name(stem, f"-9999{longest}")
         with self.names_lock:
             candidate, n = stem, 1
             while any((self.output_dir / f"{candidate}{s}").exists()

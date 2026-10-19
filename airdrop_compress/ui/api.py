@@ -8,15 +8,17 @@ from __future__ import annotations
 
 import json
 import logging
+import re
 import shutil
 import ssl
 import threading
 import time
 import urllib.error
+import urllib.parse
 import urllib.request
 from pathlib import Path
 
-from .. import APP_NAME, GITHUB_REPO, __version__, macos, paths
+from .. import APP_NAME, AUTHOR, AUTHOR_LINKS, CONTACT_EMAIL, GITHUB_REPO, WEBSITE, __version__, macos, paths
 from ..processors.documents import CODE_EXTS, MARKITDOWN_EXTS, TEXTUTIL_EXTS
 from ..processors.images import FORMATS, IMAGE_EXTS, compare_formats
 from ..settings import ValidationError, describe
@@ -59,7 +61,8 @@ class Api:
         return {
             "app": {"name": APP_NAME, "version": __version__, "repo": GITHUB_REPO,
                     "frozen": paths.is_frozen(), "support_dir": str(paths.SUPPORT_DIR),
-                    "log_file": str(paths.LOG_FILE), "plugins_dir": str(paths.PLUGINS_DIR)},
+                    "log_file": str(paths.LOG_FILE), "plugins_dir": str(paths.PLUGINS_DIR),
+                    "author": AUTHOR, "author_links": AUTHOR_LINKS, "website": WEBSITE},
             "settings": self._settings.current.to_dict(),
             "schema": describe(),
             "formats": {k: {"label": v["label"], "ext": v["ext"], "alpha": v["alpha"],
@@ -166,7 +169,12 @@ class Api:
         return {"ok": True, "count": count}
 
     def open_url(self, url: str) -> None:
-        macos.open_url(url)
+        if url.startswith("https://"):
+            macos.open_url(url)
+
+    def contact(self, topic: str = "business") -> None:
+        """Open an email to the developer with a ready-to-fill inquiry (address fixed in code)."""
+        macos.open_url(contact_mailto(topic))
 
     def open_privacy_settings(self) -> None:
         macos.open_privacy_settings()
@@ -255,6 +263,24 @@ class Api:
         return {"ok": True, "trashed": trashed}
 
 
+CONTACT_TOPICS = {
+    "business": "Business inquiry",
+    "custom": "Custom solution request",
+}
+
+
+def contact_mailto(topic: str) -> str:
+    subject = f"{CONTACT_TOPICS.get(topic, CONTACT_TOPICS['business'])} - {APP_NAME}"
+    body = (f"Hi {AUTHOR},\n\n"
+            "I'm interested in (delete what doesn't apply):\n"
+            "- Custom app development\n- Business-specific features or integrations\n"
+            "- Custom automation\n- Enterprise requirements / bulk deployment\n"
+            "- Partnership or collaboration\n- Technical support or consulting\n\n"
+            "Company / name:\nWhat I need:\nTimeline:\nBudget (optional):\n\n"
+            f"Sent from {APP_NAME} {__version__}")
+    return f"mailto:{CONTACT_EMAIL}?subject={urllib.parse.quote(subject)}&body={urllib.parse.quote(body)}"
+
+
 def parse_version(v: str) -> tuple:
     try:
         return tuple(int(x) for x in v.lstrip("v").split(".")[:3])
@@ -284,9 +310,15 @@ def fetch_update_info() -> dict:
         return {**info, "error": f"GitHub returned {e.code}"}
     except (urllib.error.URLError, TimeoutError, OSError):
         return {**info, "error": "Couldn't reach GitHub - check your internet connection."}
+    # Only trust a plain version number and links to this repository on github.com.
     latest = str(data.get("tag_name", "")).lstrip("v")
+    if not re.fullmatch(r"\d+\.\d+\.\d+", latest):
+        return {**info, "error": "GitHub returned an unexpected version"}
+    repo_prefix = f"https://github.com/{GITHUB_REPO}/"
     dmg = next((a.get("browser_download_url") for a in data.get("assets", [])
-                if str(a.get("name", "")).endswith(".dmg")), None)
+                if str(a.get("name", "")).endswith(".dmg")
+                and str(a.get("browser_download_url", "")).startswith(repo_prefix)), None)
+    page = data.get("html_url") if str(data.get("html_url", "")).startswith(repo_prefix) else None
     return {**info, "latest": latest, "available": parse_version(latest) > parse_version(__version__),
-            "url": dmg or data.get("html_url"), "page": data.get("html_url"),
+            "url": dmg or page or f"{repo_prefix}releases/latest", "page": page,
             "notes": (data.get("body") or "")[:2000]}

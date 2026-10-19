@@ -1,0 +1,49 @@
+name: Bug report
+description: Something doesn't work as described in the docs
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting! Please check [Troubleshooting](https://najathi.github.io/airdrop-compress/docs/troubleshooting.html) first.
+        **Security problems:** please don't file them here; see [SECURITY.md](https://github.com/najathi/airdrop-compress/blob/main/SECURITY.md).
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened?
+      description: What you did, what you expected, and what happened instead.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. AirDrop a .HEIC photo from iPhone
+        2. ...
+  - type: input
+    id: version
+    attributes:
+      label: AirDrop Compress version
+      description: Shown in the app under About.
+      placeholder: "2.1.0"
+    validations:
+      required: true
+  - type: input
+    id: macos
+    attributes:
+      label: macOS version and Mac
+      placeholder: "macOS 15.4, MacBook Air M2"
+    validations:
+      required: true
+  - type: dropdown
+    id: how
+    attributes:
+      label: How do you run it?
+      options: [Downloaded app (.dmg), From source (python -m airdrop_compress), Command line service (./airdrop-compress)]
+  - type: textarea
+    id: log
+    attributes:
+      label: Log lines
+      description: From ~/Library/Logs/AirDropCompress/airdrop-compress.log (About → Log → Show). **Remove file names you don't want to share.**
+      render: text
