@@ -23,14 +23,13 @@ import logging
 import re
 import shutil
 import subprocess
-import sys
 import tempfile
 import time
 import zipfile
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 
-from .. import __version__, paths
+from .. import __version__, paths, sandbox
 from ..processors.base import Job, Output, Result, SkipFile
 from ..settings import Settings, SettingsManager
 from .api import MAX_OUTPUTS, PERMISSIONS, SUFFIX_RE, SUPPORTED_API_VERSIONS
@@ -42,9 +41,14 @@ ID_RE = re.compile(r"^[a-z0-9][a-z0-9\-]{1,40}$")
 VERSION_RE = re.compile(r"^\d+\.\d+\.\d+$")
 EXT_RE = re.compile(r"^\.[a-z0-9]{1,10}$")
 SETTING_TYPES = {"bool", "int", "string", "choice"}
+# Output types a plugin may never create: double-clicking them can run code or open other apps.
+FORBIDDEN_OUTPUTS = {
+    ".app", ".command", ".tool", ".terminal", ".sh", ".zsh", ".bash", ".csh", ".pkg", ".mpkg",
+    ".dmg", ".scpt", ".scptd", ".applescript", ".workflow", ".action", ".jar", ".fileloc",
+    ".webloc", ".inetloc", ".url", ".prefpane", ".kext", ".dylib", ".so", ".plugin", ".bundle",
+}
 MAX_PLUGIN_BYTES = 50 * 1024 * 1024
 MAX_TIMEOUT = 600
-SANDBOX_EXEC = "/usr/bin/sandbox-exec"
 
 
 def parse_version(v: str) -> tuple[int, ...]:
@@ -133,6 +137,9 @@ def load_manifest(folder: Path) -> PluginInfo:
         info.errors.append("'file_types' must list extensions like \".svg\"")
     if not info.outputs or not all(EXT_RE.match(t) for t in info.outputs):
         info.errors.append("'outputs' must list the extensions the plugin creates, like \".png\"")
+    forbidden = sorted(set(info.outputs) & FORBIDDEN_OUTPUTS)
+    if forbidden:
+        info.errors.append(f"plugins may not create {', '.join(forbidden)} files (they can run code)")
     unknown = set(info.permissions) - set(PERMISSIONS)
     if unknown:
         info.errors.append(f"unknown permissions: {', '.join(sorted(unknown))}")
@@ -142,11 +149,10 @@ def load_manifest(folder: Path) -> PluginInfo:
     if folder.resolve() not in entry.parents or not entry.is_file() or entry.suffix != ".py":
         info.errors.append(f"entry file '{info.entry}' must be a .py file inside the plugin folder")
     for s in info.settings:
-        if not isinstance(s.get("key"), str) or s.get("type") not in SETTING_TYPES:
-            info.errors.append("each setting needs a 'key' and a 'type' (bool, int, string or choice)")
+        problem = setting_spec_problem(s)
+        if problem:
+            info.errors.append(problem)
             break
-        if s["type"] == "choice" and not isinstance(s.get("options"), list):
-            info.errors.append(f"setting '{s['key']}' needs 'options'")
 
     if not info.errors:
         if info.api_version not in SUPPORTED_API_VERSIONS:
@@ -159,6 +165,32 @@ def load_manifest(folder: Path) -> PluginInfo:
     except (OSError, ValueError) as e:
         info.errors.append(str(e))
     return info
+
+
+def setting_spec_problem(s: dict) -> str | None:
+    """Check one entry of the manifest's "settings" list (types are strict: the UI renders them)."""
+    key = s.get("key")
+    if not isinstance(key, str) or not re.match(r"^[A-Za-z_][A-Za-z0-9_]{0,40}$", key):
+        return "each setting needs a 'key' made of letters, digits or underscores"
+    t = s.get("type")
+    if t not in SETTING_TYPES:
+        return f"setting '{key}' needs a 'type' of bool, int, string or choice"
+    for text_field in ("label", "help"):
+        if text_field in s and (not isinstance(s[text_field], str) or len(s[text_field]) > 200):
+            return f"setting '{key}': '{text_field}' must be text (200 characters max)"
+    for bound in ("min", "max"):
+        if bound in s and (not isinstance(s[bound], int) or isinstance(s[bound], bool)):
+            return f"setting '{key}': '{bound}' must be a whole number"
+    if t == "choice":
+        options = s.get("options")
+        if not isinstance(options, list) or not options or not all(isinstance(o, str) for o in options):
+            return f"setting '{key}' needs 'options': a list of text values"
+    if "default" in s:
+        try:
+            validate_setting(s, s["default"])
+        except ValueError:
+            return f"setting '{key}': 'default' doesn't match its type"
+    return None
 
 
 def validate_setting(spec: dict, value):
@@ -176,49 +208,14 @@ def validate_setting(spec: dict, value):
     raise ValueError(f"Invalid value for {spec.get('label', spec['key'])}")
 
 
-def sandbox_profile(info: PluginInfo, input_path: Path, work: Path, runtime: list[Path]) -> str:
-    def q(p: Path | str) -> str:
-        return json.dumps(str(p))  # SBPL strings use the same escaping as JSON
-
-    home = Path.home().resolve()
-    reads = [f"(literal {q(input_path.resolve())})", f"(subpath {q(Path(info.path).resolve())})",
-             f"(subpath {q(work.resolve())})"]
-    reads += [f"(subpath {q(r.resolve())})" for r in runtime]
-    # Python checks its parent folders on start-up; listing them reveals nothing else.
-    for r in [*runtime, input_path, Path(info.path), work]:
-        for parent in r.resolve().parents:
-            reads.append(f"(literal {q(parent)})")
-    rules = [
-        "(version 1)",
-        "(allow default)",
-        "(deny file-write*)",
-        f"(allow file-write* (subpath {q(work.resolve())}) (literal \"/dev/null\") (literal \"/dev/stderr\")"
-        " (literal \"/dev/stdout\") (literal \"/dev/tty\"))",
-        f"(deny file-read* (subpath {q(home)}) (subpath \"/Volumes\"))",
-        f"(allow file-read* {' '.join(dict.fromkeys(reads))})",
-    ]
-    if "network" not in info.permissions:
-        rules.append("(deny network*)")
-    if "subprocess" not in info.permissions:
-        # Only the Python runtime itself may be started (its launcher re-executes the real binary).
-        execs = " ".join(f"(subpath {q(r.resolve())})" for r in runtime)
-        rules += ["(deny process-exec*)",
-                  f"(allow process-exec* (literal {q(Path(sys.executable).resolve())}) {execs})"]
-    return "\n".join(rules) + "\n"
-
-
-def host_command() -> tuple[list[str], dict, list[Path]]:
-    """Command that starts the plugin host, extra env, and runtime folders it must read."""
-    if paths.is_frozen():
-        bundle = paths.app_bundle() or Path(sys.executable).parent
-        return [sys.executable, "--plugin-host"], {}, [bundle]
-    runtime = {Path(sys.prefix), Path(sys.base_prefix), paths.PACKAGE_DIR}
-    return ([sys.executable, "-s", "-B", "-m", "airdrop_compress.plugins.host"],
-            {"PYTHONPATH": str(paths.PACKAGE_DIR.parent)}, sorted(runtime))
+def sandbox_profile(info: PluginInfo, input_path: Path, work: Path) -> str:
+    return sandbox.profile(read_files=[input_path], read_dirs=[Path(info.path)], write_dir=work,
+                           network="network" in info.permissions,
+                           run_programs="subprocess" in info.permissions)
 
 
 def sandbox_available() -> bool:
-    return Path(SANDBOX_EXEC).exists()
+    return sandbox.available()
 
 
 class PluginProcessor:
@@ -341,7 +338,11 @@ class PluginManager:
             if source.is_file() and source.suffix.lower() == ".zip":
                 self._extract_zip(source, staging)
             elif source.is_dir():
-                shutil.copytree(source, staging, symlinks=False,
+                # Links could pull in files from elsewhere on the Mac, which the plugin could then read.
+                links = [p for p in source.rglob("*") if p.is_symlink()]
+                if links:
+                    raise ValueError(f"Plugin folders can't contain links ({links[0].name})")
+                shutil.copytree(source, staging, symlinks=True,
                                 ignore=shutil.ignore_patterns("__pycache__", ".DS_Store", ".git"))
             else:
                 raise ValueError("Choose a plugin folder or a .zip file")
@@ -418,16 +419,16 @@ class PluginManager:
         tmp_dir = job.workdir / "plugin-tmp"
         out_dir.mkdir()
         tmp_dir.mkdir()
-        cmd, env_extra, runtime = host_command()
+        cmd, env_extra = sandbox.python_command("airdrop_compress.plugins.host", "--plugin-host")
         profile = job.workdir / "sandbox.sb"
-        profile.write_text(sandbox_profile(info, job.src, job.workdir, runtime))
+        profile.write_text(sandbox_profile(info, job.src, job.workdir))
         env = {"PATH": "/usr/bin:/bin:/usr/sbin:/sbin", "HOME": str(tmp_dir), "TMPDIR": str(tmp_dir),
                "LANG": "en_US.UTF-8", "PYTHONDONTWRITEBYTECODE": "1", **env_extra}
         request = {"id": info.id, "plugin_dir": str(Path(info.path).resolve()), "entry": info.entry,
                    "input": str(job.src.resolve()), "output_dir": str(out_dir.resolve()),
                    "settings": self.plugin_settings(info)}
         try:
-            proc = subprocess.run([SANDBOX_EXEC, "-f", str(profile), *cmd], input=json.dumps(request),
+            proc = subprocess.run(sandbox.command(profile, cmd), input=json.dumps(request),
                                   capture_output=True, text=True, timeout=info.timeout, env=env,
                                   cwd=str(tmp_dir))
         except subprocess.TimeoutExpired:

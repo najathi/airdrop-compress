@@ -377,7 +377,7 @@ function pluginSetting(p, s) {
   let control;
   if (s.type === "bool") control = `<label class="switch"><input type="checkbox" data-plugin-setting="${esc(s.key)}" ${v ? "checked" : ""}><span></span></label>`;
   else if (s.type === "choice") control = `<select data-plugin-setting="${esc(s.key)}">${s.options.map(o => `<option ${o === v ? "selected" : ""}>${esc(o)}</option>`).join("")}</select>`;
-  else if (s.type === "int") control = `<div class="input-unit"><input type="number" data-plugin-setting="${esc(s.key)}" data-type="int" value="${esc(v)}" ${s.min !== undefined ? `min="${s.min}"` : ""} ${s.max !== undefined ? `max="${s.max}"` : ""}></div>`;
+  else if (s.type === "int") control = `<div class="input-unit"><input type="number" data-plugin-setting="${esc(s.key)}" data-type="int" value="${esc(v)}" ${s.min !== undefined ? `min="${esc(s.min)}"` : ""} ${s.max !== undefined ? `max="${esc(s.max)}"` : ""}></div>`;
   else control = `<input type="text" class="text" data-plugin-setting="${esc(s.key)}" value="${esc(v)}">`;
   return `<div class="row"><div class="row-text"><div class="row-title">${esc(s.label || s.key)}</div>${s.help ? `<div class="row-hint">${esc(s.help)}</div>` : ""}</div>${control}</div>`;
 }
@@ -425,12 +425,16 @@ async function checkUpdates(force) {
 /* --------------------------------------------------------------------- init */
 function bindActions() {
   $$(".nav-item").forEach(a => a.addEventListener("click", e => { e.preventDefault(); history.replaceState(null, "", `#${a.dataset.page}`); showPage(a.dataset.page); }));
-  $$("[data-goto]").forEach(el => el.addEventListener("click", () => showPage(el.dataset.goto)));
+  $$("[data-goto]").forEach(el => el.addEventListener("click", () => {
+    showPage(el.dataset.goto);
+    if (el.dataset.scroll) setTimeout(() => document.getElementById(el.dataset.scroll)?.scrollIntoView({ behavior: "smooth" }), 50);
+  }));
 
   document.addEventListener("click", async e => {
     const t = e.target.closest("button, [data-reveal], [data-open]");
     if (!t) return;
     if (t.dataset.open) api().open_folder(t.dataset.open);
+    if (t.dataset.contact) { api().contact(t.dataset.contact); toast("Opening your email app…", "info"); }
     if (t.dataset.url) api().open_url(t.dataset.url);
     if (t.dataset.reveal) api().reveal_output(t.dataset.reveal);
     if (t.dataset.useFormat) { await save({ images: { format: t.dataset.useFormat } }); renderCompare(); }
@@ -546,9 +550,13 @@ async function init() {
   $("#about-version").textContent = `Version ${data.app.version}${data.app.frozen ? "" : " (running from source)"}`;
   $("#about-support").textContent = data.app.support_dir;
   $("#about-log").textContent = data.app.log_file;
-  $("#types-documents").innerHTML = data.file_types.documents.map(t => `<span>${t}</span>`).join("");
-  $("#types-legacy").innerHTML = data.file_types.legacy_documents.map(t => `<span>${t}</span>`).join("");
-  $("#types-code").innerHTML = data.file_types.code.map(t => `<span>${t}</span>`).join("");
+  $("#author-name").textContent = data.app.author;
+  $("#author-links").innerHTML = Object.entries(data.app.author_links)
+    .map(([name, url]) => `<button class="btn subtle" data-url="${esc(url)}">${esc(name)}</button>`).join("") +
+    `<button class="btn subtle" data-url="${esc(data.app.website)}">Website</button>`;
+  $("#types-documents").innerHTML = data.file_types.documents.map(t => `<span>${esc(t)}</span>`).join("");
+  $("#types-legacy").innerHTML = data.file_types.legacy_documents.map(t => `<span>${esc(t)}</span>`).join("");
+  $("#types-code").innerHTML = data.file_types.code.map(t => `<span>${esc(t)}</span>`).join("");
   renderStatus(data.status);
   renderStats(data.stats);
   state.activity = data.activity || []; state.revision = data.revision;

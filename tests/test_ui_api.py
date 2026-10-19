@@ -77,12 +77,12 @@ def test_convert_requires_running_engine(api, photo_jpeg):
 
 def test_update_check(monkeypatch):
     def fake_urlopen(req, timeout, context):
-        body = {"tag_name": "v9.0.0", "html_url": "https://github.com/x/releases/9",
-                "assets": [{"name": "AirDrop-Compress-9.0.0-arm64.dmg", "browser_download_url": "https://dl/9.dmg"}]}
+        body = {"tag_name": "v9.0.0", "html_url": "https://github.com/najathi/airdrop-compress/releases/tag/v9.0.0",
+                "assets": [{"name": "AirDrop-Compress-9.0.0-arm64.dmg", "browser_download_url": "https://github.com/najathi/airdrop-compress/releases/download/v9.0.0/AirDrop-Compress-9.0.0-arm64.dmg"}]}
         return io.BytesIO(json.dumps(body).encode())
     monkeypatch.setattr(api_mod.urllib.request, "urlopen", fake_urlopen)
     info = api_mod.fetch_update_info()
-    assert info["available"] and info["latest"] == "9.0.0" and info["url"] == "https://dl/9.dmg"
+    assert info["available"] and info["latest"] == "9.0.0" and info["url"].endswith("v9.0.0/AirDrop-Compress-9.0.0-arm64.dmg")
 
     def not_found(req, timeout, context):
         raise urllib.error.HTTPError(req.full_url, 404, "Not Found", {}, None)
@@ -101,3 +101,22 @@ def test_uninstall_removes_app_data_only(api, monkeypatch):
     assert api.uninstall()["ok"]
     assert not paths.SUPPORT_DIR.exists()
     assert calls == [("login", False)]  # never the v1 service; no bundle to trash from source
+
+
+def test_update_check_rejects_unexpected_data(monkeypatch):
+    def fake(body):
+        return lambda req, timeout, context: io.BytesIO(json.dumps(body).encode())
+    monkeypatch.setattr(api_mod.urllib.request, "urlopen", fake({"tag_name": "v9.0.0; rm -rf ~"}))
+    assert "error" in api_mod.fetch_update_info()
+    monkeypatch.setattr(api_mod.urllib.request, "urlopen", fake({
+        "tag_name": "v9.0.0", "html_url": "https://evil.example/x",
+        "assets": [{"name": "a.dmg", "browser_download_url": "https://evil.example/a.dmg"}]}))
+    info = api_mod.fetch_update_info()
+    assert info["url"].startswith("https://github.com/najathi/airdrop-compress/")
+
+
+def test_notifications_keep_unicode(monkeypatch):
+    seen = []
+    monkeypatch.setattr(macos.subprocess, "run", lambda args, **kw: seen.append(args))
+    macos.notify("AirDrop Compress", "12 MB → 3 MB")
+    assert "→" in seen[0][-1] and "\\u2192" not in seen[0][-1]

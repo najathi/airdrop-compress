@@ -1,0 +1,26 @@
+name: Feature request
+description: Suggest an idea or a new file format
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What would you like to do?
+      description: The problem or workflow, not just the solution.
+    validations:
+      required: true
+  - type: textarea
+    id: idea
+    attributes:
+      label: How could AirDrop Compress help?
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options: [Images, Documents, Plugins, App / settings, Website / docs, Other]
+  - type: checkboxes
+    id: plugin
+    attributes:
+      label: Could this be a plugin?
+      options:
+        - label: I've checked the plugin guide and this needs a change to the app itself

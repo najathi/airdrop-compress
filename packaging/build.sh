@@ -81,6 +81,10 @@ if [[ -n "${NOTARY_PROFILE:-}" ]]; then
   xcrun stapler staple "$DMG"
 fi
 
+# Same file under a stable name: the website links to releases/latest/download/<this name>.
+cp "$DMG" "dist/AirDrop-Compress-$ARCH.dmg"
+
 step "Done"
 du -sh "$APP" "$DMG"
+shasum -a 256 "$DMG" "dist/AirDrop-Compress-$ARCH.dmg"
 echo "Install: open $DMG and drag $APP_NAME to Applications."

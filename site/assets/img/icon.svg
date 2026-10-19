@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#3fa9ff"/>
+      <stop offset="1" stop-color="#4c47e8"/>
+    </linearGradient>
+    <linearGradient id="shine" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#fff" stop-opacity=".22"/>
+      <stop offset=".5" stop-color="#fff" stop-opacity="0"/>
+    </linearGradient>
+  </defs>
+  <rect x="100" y="100" width="824" height="824" rx="186" fill="url(#bg)"/>
+  <rect x="100" y="100" width="824" height="824" rx="186" fill="url(#shine)"/>
+  <!-- AirDrop-style rings -->
+  <path d="M252 512a260 260 0 0 1 520 0" fill="none" stroke="#fff" stroke-opacity=".35" stroke-width="34" stroke-linecap="round"/>
+  <path d="M338 512a174 174 0 0 1 348 0" fill="none" stroke="#fff" stroke-opacity=".6" stroke-width="34" stroke-linecap="round"/>
+  <!-- compress arrows -->
+  <path d="M512 430v190" stroke="#fff" stroke-width="46" stroke-linecap="round"/>
+  <path d="M430 548l82 82 82-82" fill="none" stroke="#fff" stroke-width="46" stroke-linecap="round" stroke-linejoin="round"/>
+  <!-- tray -->
+  <path d="M332 650v56a40 40 0 0 0 40 40h280a40 40 0 0 0 40-40v-56" fill="none" stroke="#fff" stroke-width="46" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

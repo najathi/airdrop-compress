@@ -20,7 +20,9 @@ LEGACY_PLIST = Path(f"~/Library/LaunchAgents/{LEGACY_LABEL}.plist").expanduser()
 
 
 def notify(title: str, message: str) -> None:
-    script = f"display notification {json.dumps(message)} with title {json.dumps(title)}"
+    # ensure_ascii=False: AppleScript doesn't understand \uXXXX escapes (they'd show literally).
+    script = (f"display notification {json.dumps(message, ensure_ascii=False)} "
+              f"with title {json.dumps(title, ensure_ascii=False)}")
     subprocess.run(["/usr/bin/osascript", "-e", script], capture_output=True)
 
 
@@ -37,6 +39,18 @@ def quarantine_agent(path: Path) -> str | None:
     return parts[2] if len(parts) > 2 else ""
 
 
+def copy_quarantine(src: Path, targets: list[Path]) -> None:
+    """Copy the source's quarantine tag to files made from it, so Gatekeeper still treats
+    them as coming from another device (matters for anything a plugin creates)."""
+    result = subprocess.run(["/usr/bin/xattr", "-p", "com.apple.quarantine", str(src)],
+                            capture_output=True, text=True)
+    value = result.stdout.strip()
+    if result.returncode != 0 or not value:
+        return
+    for t in targets:
+        subprocess.run(["/usr/bin/xattr", "-w", "com.apple.quarantine", value, str(t)], capture_output=True)
+
+
 def open_path(path: Path) -> None:
     subprocess.run(["/usr/bin/open", str(path)], capture_output=True)
 
@@ -46,7 +60,7 @@ def reveal(path: Path) -> None:
 
 
 def open_url(url: str) -> None:
-    if url.startswith(("https://", "x-apple.systempreferences:")):
+    if url.startswith(("https://", "mailto:", "x-apple.systempreferences:")):
         subprocess.run(["/usr/bin/open", url], capture_output=True)
 
 

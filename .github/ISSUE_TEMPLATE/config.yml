@@ -1,0 +1,11 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Documentation & FAQ
+    url: https://najathi.github.io/airdrop-compress/docs/
+    about: Installation, settings, formats and troubleshooting.
+  - name: Report a security vulnerability
+    url: https://github.com/najathi/airdrop-compress/security/advisories/new
+    about: Please report security problems privately.
+  - name: Business inquiries & custom solutions
+    url: https://najathi.github.io/airdrop-compress/#business
+    about: Custom development, integrations, enterprise deployment, partnerships and consulting.

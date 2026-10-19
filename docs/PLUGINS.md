@@ -72,7 +72,7 @@ A complete working example is in [`examples/plugins/svg-minify`](../examples/plu
 | `min_app_version` | yes | The oldest AirDrop Compress version your plugin works with, e.g. `"2.0.0"`. |
 | `entry` | yes | The Python file that defines `process(ctx)`, relative to the plugin folder. |
 | `file_types` | yes | Extensions the plugin handles, lowercase with a dot: `[".svg"]`. |
-| `outputs` | yes | Extensions the plugin may create. Any other type is rejected. |
+| `outputs` | yes | Extensions the plugin may create. Any other type is rejected. Types that can run code or open other apps when double-clicked (`.app`, `.command`, `.sh`, `.pkg`, `.dmg`, `.scpt`, `.workflow`, `.jar`, `.webloc`, `.fileloc`, …) aren't allowed. |
 | `permissions` | no | Extra capabilities, see [Permissions](#permissions). Default: none. |
 | `timeout` | no | Seconds per file before the plugin is stopped (1–600, default 120). |
 | `settings` | no | Settings shown in the app, see [Settings](#settings). |
@@ -108,7 +108,7 @@ Each entry in `settings` becomes a control on the plugin's card:
 | `string` | text field | `default` (values are capped at 2000 characters) |
 | `choice` | drop-down | `default`, `options` (a list of strings) |
 
-Every entry also takes `key` (required), `label`, and `help` (a hint shown below the label). Values are validated before your plugin sees them. A missing or invalid value falls back to `default`.
+Every entry also takes `key` (required: letters, digits and underscores), `label`, and `help` (a hint shown below the label; at most 200 characters each). `min` and `max` must be whole numbers, `options` must be text, and `default` must match the type, otherwise the manifest is rejected. Values are validated before your plugin sees them. A missing or invalid value falls back to `default`.
 
 ## Permissions
 
@@ -118,7 +118,13 @@ By default a plugin can:
 - write files to its private output folder (through `ctx.output`);
 - use the Python standard library and the libraries bundled with the app (Pillow, pillow-heif and others).
 
-Everything else is blocked by the macOS sandbox, including your other files, the app's settings and history, the network and other programs. Ask for more only if you need it:
+Everything else is blocked by the macOS sandbox. The sandbox is an allowlist: only the system libraries, the Python runtime, the input file, the plugin's folder and its scratch folder are readable. That means a plugin can't:
+
+- read your other files, list folders, or read the app's settings and history;
+- talk to other apps or system services: no clipboard, no Apple Events, no opening URLs or apps through Launch Services;
+- use the network or run other programs (unless approved, below).
+
+Inside the plugin, `HOME` and the temporary folder both point to its scratch folder. Ask for more only if you need it:
 
 | Permission | Allows | The user sees |
 |---|---|---|
@@ -133,7 +139,9 @@ Users approve these permissions when they turn the plugin on. File access can't 
 - **Approval is tied to the code.** The app stores a SHA-256 hash of every file in the plugin folder when the user approves it. If any file changes, through an update or tampering, the plugin shows **Changed – approve again** and doesn't run. The hash is checked again right before each run.
 - **Sandboxed process.** Each file is processed in a separate process started with `sandbox-exec` and a profile generated for that run. If the sandbox isn't available, plugins don't run at all.
 - **Checked outputs.** Output names must be simple and must use a declared type. Symlinks are rejected, at most 20 outputs are allowed, and the app moves the files into place itself. A plugin can't overwrite or delete anything.
-- **Limits.** Per-file timeout, plugin folders up to 50 MB, and zip installs are checked for path traversal and symlinks.
+- **Limits.** Per-file timeout, plugin folders up to 50 MB, and installs (folder or zip) are refused if they contain links or path traversal.
+- **Strict manifests.** Everything the app displays from a manifest is type-checked and escaped, so a manifest can't inject content into the app's window.
+- **Quarantine kept.** Outputs inherit the source file's macOS quarantine tag.
 - **Isolation from the app.** The plugin process gets a minimal environment, with `HOME` and `TMPDIR` pointing to a scratch folder. It never sees the app's settings, history or other plugins' settings.
 
 ## Compatibility and versioning

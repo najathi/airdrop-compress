@@ -40,6 +40,7 @@ def run_watcher(scan_once: bool) -> int:
     from .plugins.manager import PluginManager
     from .settings import SettingsManager
 
+    paths.ensure_dirs()
     settings = SettingsManager()
     engine = Engine(settings, PluginManager(settings))
 
@@ -78,6 +79,10 @@ def main(argv: list[str] | None = None) -> int:
     if argv[:1] == ["--plugin-host"]:
         from .plugins import host
         return host.main()
+    # Internal: sandboxed document conversion (see processors/documents.py).
+    if argv[:1] == ["--convert-document"]:
+        from .processors import document_worker
+        return document_worker.main()
 
     if paths.is_frozen():
         argv = [a for a in argv if not a.startswith("-psn")]  # old macOS process-serial args

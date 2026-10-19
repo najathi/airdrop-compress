@@ -47,5 +47,10 @@ def app_bundle() -> Path | None:
 
 
 def ensure_dirs() -> None:
+    # Private to this user: history and logs contain the names of files you received.
     for d in (SUPPORT_DIR, PLUGINS_DIR, LOG_DIR):
         d.mkdir(parents=True, exist_ok=True)
+        try:
+            d.chmod(0o700)
+        except OSError:
+            pass
