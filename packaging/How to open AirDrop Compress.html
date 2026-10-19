@@ -1,0 +1,180 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Opening AirDrop Compress</title>
+<style>
+  :root {
+    --bg: #f5f5f7; --card: #fff; --text: #1d1d1f; --muted: #6e6e73; --line: rgba(0,0,0,.09);
+    --accent: #0a7aff; --accent-soft: rgba(10,122,255,.12); --dialog: #ececec; --btn: #fff; --ok: #1f9d55;
+    --code-bg: #1d1d1f; --code-text: #f5f5f7;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #1c1c1e; --card: #2a2a2d; --text: #f5f5f7; --muted: #a1a1a6; --line: rgba(255,255,255,.1);
+            --accent: #3b9bff; --accent-soft: rgba(59,155,255,.18); --dialog: #323235; --btn: #5a5a5f; --ok: #32d74b;
+            --code-bg: #0f0f10; }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text);
+         font: 15px/1.55 -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", sans-serif; }
+  main { max-width: 760px; margin: 0 auto; padding: 48px 20px 64px; }
+  header { text-align: center; margin-bottom: 36px; }
+  header img { width: 88px; height: 88px; }
+  h1 { font-size: 30px; letter-spacing: -.02em; margin: 10px 0 8px; }
+  h2 { font-size: 19px; margin: 40px 0 6px; }
+  .lead { color: var(--muted); max-width: 560px; margin: 0 auto; }
+  .tag { display: inline-block; font-size: 12px; font-weight: 600; color: var(--accent); background: var(--accent-soft);
+         border-radius: 10px; padding: 2px 10px; margin-left: 6px; vertical-align: middle; }
+  .step { display: grid; grid-template-columns: 34px 1fr; gap: 16px; background: var(--card); border: 1px solid var(--line);
+          border-radius: 14px; padding: 20px; margin: 14px 0; }
+  .num { width: 30px; height: 30px; border-radius: 50%; background: var(--accent); color: #fff; font-weight: 700;
+         display: grid; place-items: center; }
+  .step h3 { margin: 3px 0 4px; font-size: 16px; }
+  .step p { margin: 0 0 12px; color: var(--muted); }
+  .step p b { color: var(--text); }
+
+  /* --- pictures: drawn macOS dialogs ------------------------------------------ */
+  .shot { display: flex; justify-content: center; padding: 18px; border-radius: 12px;
+          background: linear-gradient(135deg, #7aa7e8, #9b8de0); }
+  .dialog { width: 290px; background: var(--dialog); border-radius: 14px; padding: 18px 16px 14px; text-align: center;
+            box-shadow: 0 12px 40px rgba(0,0,0,.35); font-size: 12.5px; color: var(--text); }
+  .dialog img { width: 54px; height: 54px; }
+  .dialog .t { font-weight: 700; font-size: 13.5px; margin: 6px 0 4px; }
+  .dialog .m { color: var(--muted); margin-bottom: 12px; }
+  .btns { display: flex; flex-direction: column; gap: 6px; }
+  .btns.row { flex-direction: row; }
+  .btns span { flex: 1; background: var(--btn); border-radius: 7px; padding: 5px; font-weight: 500;
+               box-shadow: 0 .5px 1.5px rgba(0,0,0,.25); }
+  .btns span.primary { background: var(--accent); color: #fff; }
+  .btns span.target { outline: 3px solid #ffcc00; outline-offset: 2px; position: relative; }
+  .settings { width: 100%; max-width: 520px; background: var(--card); border-radius: 12px; overflow: hidden;
+              box-shadow: 0 12px 40px rgba(0,0,0,.3); font-size: 12.5px; }
+  .settings .bar { display: flex; gap: 6px; align-items: center; padding: 10px 12px; border-bottom: 1px solid var(--line); }
+  .settings .bar i { width: 11px; height: 11px; border-radius: 50%; background: #ff5f57; }
+  .settings .bar i:nth-child(2) { background: #febc2e; } .settings .bar i:nth-child(3) { background: #28c840; }
+  .settings .bar b { margin-left: 10px; }
+  .settings .body { padding: 14px 18px 18px; }
+  .settings .section { font-weight: 700; margin-bottom: 8px; }
+  .settings .row { display: flex; justify-content: space-between; align-items: center; gap: 12px;
+                   background: var(--bg); border-radius: 9px; padding: 10px 12px; }
+  .settings .row span.btn { background: var(--btn); border-radius: 6px; padding: 3px 10px; white-space: nowrap;
+                            box-shadow: 0 .5px 1.5px rgba(0,0,0,.25); font-weight: 500; }
+
+  /* --- terminal ---------------------------------------------------------------- */
+  .code { display: flex; align-items: center; gap: 10px; background: var(--code-bg); color: var(--code-text);
+          border-radius: 10px; padding: 12px 12px 12px 16px; font: 13px ui-monospace, "SF Mono", Menlo, monospace; }
+  .code code { flex: 1; overflow-x: auto; white-space: nowrap; }
+  .code button { font: 600 12px -apple-system, sans-serif; color: #fff; background: var(--accent); border: 0;
+                 border-radius: 7px; padding: 6px 12px; cursor: pointer; }
+  .note { font-size: 13px; color: var(--muted); margin-top: 10px; }
+  .done { text-align: center; margin-top: 44px; color: var(--muted); }
+  .done b { color: var(--ok); }
+  a { color: var(--accent); }
+  details { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 14px 18px; margin-top: 14px; }
+  summary { cursor: pointer; font-weight: 600; }
+  @media (max-width: 560px) { .step { grid-template-columns: 1fr; } .shot { padding: 12px; } }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <img alt="" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1024 1024'%3E%3Cdefs%3E%3ClinearGradient id='b' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0' stop-color='%233fa9ff'/%3E%3Cstop offset='1' stop-color='%234c47e8'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect x='100' y='100' width='824' height='824' rx='186' fill='url(%23b)'/%3E%3Cpath d='M252 512a260 260 0 0 1 520 0' fill='none' stroke='%23fff' stroke-opacity='.35' stroke-width='34' stroke-linecap='round'/%3E%3Cpath d='M338 512a174 174 0 0 1 348 0' fill='none' stroke='%23fff' stroke-opacity='.6' stroke-width='34' stroke-linecap='round'/%3E%3Cpath d='M512 430v190' stroke='%23fff' stroke-width='46' stroke-linecap='round'/%3E%3Cpath d='M430 548l82 82 82-82' fill='none' stroke='%23fff' stroke-width='46' stroke-linecap='round' stroke-linejoin='round'/%3E%3Cpath d='M332 650v56a40 40 0 0 0 40 40h280a40 40 0 0 0 40-40v-56' fill='none' stroke='%23fff' stroke-width='46' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+    <h1>Opening AirDrop Compress</h1>
+    <p class="lead">This free app isn't notarised by Apple yet, so macOS asks you to confirm the first time you open it.
+      It takes about a minute, and you only do it once.</p>
+  </header>
+
+  <h2>On macOS 15 Sequoia and later <span class="tag">Most Macs</span></h2>
+
+  <div class="step">
+    <div class="num">1</div>
+    <div>
+      <h3>Drag the app to Applications, then open it</h3>
+      <p>macOS shows a warning. Click <b>Done</b> (not <i>Move to Trash</i>).</p>
+      <div class="shot">
+        <div class="dialog">
+          <div style="font-size:42px;line-height:1">⚠️</div>
+          <div class="t">“AirDrop Compress” Not Opened</div>
+          <div class="m">Apple could not verify “AirDrop Compress” is free of malware that may harm your Mac or compromise your privacy.</div>
+          <div class="btns"><span class="primary target">Done</span><span>Move to Trash</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="num">2</div>
+    <div>
+      <h3>Open System Settings › Privacy &amp; Security</h3>
+      <p>Scroll down to <b>Security</b> and click <b>Open Anyway</b> next to “AirDrop Compress” was blocked.</p>
+      <div class="shot">
+        <div class="settings">
+          <div class="bar"><i></i><i></i><i></i><b>Privacy &amp; Security</b></div>
+          <div class="body">
+            <div class="section">Security</div>
+            <div class="row"><span>“AirDrop Compress” was blocked to protect your Mac.</span><span class="btn target" style="outline:3px solid #ffcc00;outline-offset:2px">Open Anyway</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="num">3</div>
+    <div>
+      <h3>Confirm with Open Anyway</h3>
+      <p>Click <b>Open Anyway</b> again, then enter your Mac password or use Touch ID.</p>
+      <div class="shot">
+        <div class="dialog">
+          <div style="font-size:42px;line-height:1">⚠️</div>
+          <div class="t">Open “AirDrop Compress”?</div>
+          <div class="m">macOS cannot verify the developer of “AirDrop Compress”. Are you sure you want to open it?</div>
+          <div class="btns"><span class="target">Open Anyway</span><span class="primary">Move to Trash</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="num">4</div>
+    <div>
+      <h3>Allow access to your AirDrop folder</h3>
+      <p>AirDrop Compress needs to read the folder AirDrop saves to. Click <b>Allow</b>.</p>
+      <div class="shot">
+        <div class="dialog">
+          <div style="font-size:42px;line-height:1">📁</div>
+          <div class="t">“AirDrop Compress” would like to access files in your Downloads folder.</div>
+          <div class="m">AirDrop Compress watches your Downloads folder, where AirDrop saves received files.</div>
+          <div class="btns row"><span>Don't Allow</span><span class="primary target">Allow</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <h2>Prefer Terminal? <span class="tag">Any macOS</span></h2>
+  <p style="color:var(--muted);margin:0 0 10px">After dragging the app to Applications, paste this into Terminal and press Return. Then open the app normally.</p>
+  <div class="code"><code id="cmd">xattr -dr com.apple.quarantine "/Applications/AirDrop Compress.app"</code><button id="copy">Copy</button></div>
+  <p class="note">This removes the “downloaded from the internet” flag from this one app only. Only do this for apps you trust.</p>
+
+  <details>
+    <summary>On macOS 12–14 (Monterey, Ventura, Sonoma)</summary>
+    <p style="color:var(--muted)">In Applications, <b>right-click</b> (or Control-click) AirDrop Compress, choose <b>Open</b>, then click <b>Open</b> in the dialog.</p>
+  </details>
+
+  <p class="done"><b>✓ That's it.</b> Look for the AirDrop Compress icon in your menu bar. New AirDrop files are converted automatically.<br>
+    Questions? <a href="https://github.com/najathi/airdrop-compress#troubleshooting">Troubleshooting</a> ·
+    <a href="https://github.com/najathi/airdrop-compress/issues">Report a problem</a></p>
+</main>
+<script>
+  document.getElementById("copy").addEventListener("click", async (e) => {
+    const text = document.getElementById("cmd").textContent;
+    try { await navigator.clipboard.writeText(text); }
+    catch { const r = document.createRange(); r.selectNode(document.getElementById("cmd"));
+            getSelection().removeAllRanges(); getSelection().addRange(r); document.execCommand("copy"); }
+    e.target.textContent = "Copied";
+    setTimeout(() => (e.target.textContent = "Copy"), 1600);
+  });
+</script>
+</body>
+</html>
